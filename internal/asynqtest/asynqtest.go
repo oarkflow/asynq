@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/sujit-baniya/asynq/internal/base"
-	"github.com/sujit-baniya/asynq/internal/timeutil"
+	"github.com/oarkflow/asynq/internal/base"
+	"github.com/oarkflow/asynq/internal/timeutil"
+	"github.com/redis/go-redis/v9"
 )
 
 // EquateInt64Approx returns a Comparer option that treats int64 values

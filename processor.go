@@ -13,11 +13,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sujit-baniya/asynq/internal/base"
-	asynqcontext "github.com/sujit-baniya/asynq/internal/context"
-	"github.com/sujit-baniya/asynq/internal/errors"
-	"github.com/sujit-baniya/asynq/internal/log"
-	"github.com/sujit-baniya/asynq/internal/timeutil"
+	"github.com/oarkflow/asynq/internal/base"
+	asynqcontext "github.com/oarkflow/asynq/internal/context"
+	"github.com/oarkflow/asynq/internal/errors"
+	"github.com/oarkflow/asynq/internal/log"
+	"github.com/oarkflow/asynq/internal/timeutil"
 	"golang.org/x/time/rate"
 )
 

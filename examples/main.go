@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/sujit-baniya/asynq"
+	"github.com/oarkflow/asynq"
 	"log"
 	"time"
 )

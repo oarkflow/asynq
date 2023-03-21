@@ -8,7 +8,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/sujit-baniya/asynq/internal/base"
+	"github.com/oarkflow/asynq/internal/base"
 )
 
 // A taskMetadata holds task scoped data to put in context.

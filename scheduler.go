@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/oarkflow/asynq/internal/base"
+	"github.com/oarkflow/asynq/internal/log"
+	"github.com/oarkflow/asynq/internal/rdb"
+	"github.com/redis/go-redis/v9"
 	"github.com/robfig/cron/v3"
-	"github.com/sujit-baniya/asynq/internal/base"
-	"github.com/sujit-baniya/asynq/internal/log"
-	"github.com/sujit-baniya/asynq/internal/rdb"
 )
 
 // A Scheduler kicks off tasks at regular intervals based on the user defined schedule.

@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-redis/redis/v8"
-	"github.com/sujit-baniya/asynq/internal/base"
-	"github.com/sujit-baniya/asynq/internal/errors"
-	"github.com/sujit-baniya/asynq/internal/rdb"
+	"github.com/oarkflow/asynq/internal/base"
+	"github.com/oarkflow/asynq/internal/errors"
+	"github.com/oarkflow/asynq/internal/rdb"
+	"github.com/redis/go-redis/v9"
 )
 
 // Inspector is a client interface to inspect and mutate the state of

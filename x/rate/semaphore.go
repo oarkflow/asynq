@@ -4,12 +4,12 @@ package rate
 import (
 	"context"
 	"fmt"
-	"github.com/go-redis/redis/v8"
-	"github.com/sujit-baniya/asynq"
+	"github.com/oarkflow/asynq"
+	"github.com/redis/go-redis/v9"
 	"strings"
 	"time"
 
-	asynqcontext "github.com/sujit-baniya/asynq/internal/context"
+	asynqcontext "github.com/oarkflow/asynq/internal/context"
 )
 
 // NewSemaphore creates a counting Semaphore for the given scope with the given number of tokens.

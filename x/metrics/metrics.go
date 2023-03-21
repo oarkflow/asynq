@@ -3,7 +3,7 @@ package metrics
 
 import (
 	"fmt"
-	"github.com/sujit-baniya/asynq"
+	"github.com/oarkflow/asynq"
 	"log"
 
 	"github.com/prometheus/client_golang/prometheus"

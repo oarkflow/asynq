@@ -9,14 +9,14 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/oarkflow/asynq/internal/base"
 	"net"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/go-redis/redis/v8"
-	"github.com/sujit-baniya/asynq/internal/base"
+	"github.com/redis/go-redis/v9"
 )
 
 type Attachment struct {

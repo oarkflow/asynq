@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/sujit-baniya/asynq"
+	"github.com/oarkflow/asynq"
 )
 
 type Operation struct {

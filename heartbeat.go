@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sujit-baniya/asynq/internal/base"
-	"github.com/sujit-baniya/asynq/internal/log"
-	"github.com/sujit-baniya/asynq/internal/timeutil"
+	"github.com/oarkflow/asynq/internal/base"
+	"github.com/oarkflow/asynq/internal/log"
+	"github.com/oarkflow/asynq/internal/timeutil"
 )
 
 // heartbeater is responsible for writing process info to redis periodically to

@@ -8,7 +8,7 @@ import (
 	"github.com/rs/xid"
 	"time"
 
-	"github.com/sujit-baniya/asynq/internal/base"
+	"github.com/oarkflow/asynq/internal/base"
 )
 
 func makeDefaultTaskMessage() *base.TaskMessage {

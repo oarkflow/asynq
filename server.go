@@ -17,11 +17,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sujit-baniya/asynq/internal/base"
-	"github.com/sujit-baniya/asynq/internal/log"
-	"github.com/sujit-baniya/asynq/internal/rdb"
+	"github.com/oarkflow/asynq/internal/base"
+	"github.com/oarkflow/asynq/internal/log"
+	"github.com/oarkflow/asynq/internal/rdb"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 // Server is responsible for task processing and task lifecycle management.
