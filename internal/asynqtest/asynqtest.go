@@ -247,7 +247,7 @@ func SeedCompletedQueue(tb testing.TB, r redis.UniversalClient, entries []base.Z
 	seedRedisZSet(tb, r, base.CompletedKey(qname), entries, base.TaskStateCompleted)
 }
 
-// SeedAllPendingQueues initializes all of the specified queues with the given messages.
+// SeedAllPendingQueues initializes all the specified queues with the given messages.
 //
 // pending maps a queue name to a list of messages.
 func SeedAllPendingQueues(tb testing.TB, r redis.UniversalClient, pending map[string][]*base.TaskMessage) {
@@ -257,7 +257,7 @@ func SeedAllPendingQueues(tb testing.TB, r redis.UniversalClient, pending map[st
 	}
 }
 
-// SeedAllActiveQueues initializes all of the specified active queues with the given messages.
+// SeedAllActiveQueues initializes all the specified active queues with the given messages.
 func SeedAllActiveQueues(tb testing.TB, r redis.UniversalClient, active map[string][]*base.TaskMessage) {
 	tb.Helper()
 	for q, msgs := range active {
@@ -265,7 +265,7 @@ func SeedAllActiveQueues(tb testing.TB, r redis.UniversalClient, active map[stri
 	}
 }
 
-// SeedAllScheduledQueues initializes all of the specified scheduled queues with the given entries.
+// SeedAllScheduledQueues initializes all the specified scheduled queues with the given entries.
 func SeedAllScheduledQueues(tb testing.TB, r redis.UniversalClient, scheduled map[string][]base.Z) {
 	tb.Helper()
 	for q, entries := range scheduled {
@@ -273,7 +273,7 @@ func SeedAllScheduledQueues(tb testing.TB, r redis.UniversalClient, scheduled ma
 	}
 }
 
-// SeedAllRetryQueues initializes all of the specified retry queues with the given entries.
+// SeedAllRetryQueues initializes all the specified retry queues with the given entries.
 func SeedAllRetryQueues(tb testing.TB, r redis.UniversalClient, retry map[string][]base.Z) {
 	tb.Helper()
 	for q, entries := range retry {
@@ -281,7 +281,7 @@ func SeedAllRetryQueues(tb testing.TB, r redis.UniversalClient, retry map[string
 	}
 }
 
-// SeedAllArchivedQueues initializes all of the specified archived queues with the given entries.
+// SeedAllArchivedQueues initializes all the specified archived queues with the given entries.
 func SeedAllArchivedQueues(tb testing.TB, r redis.UniversalClient, archived map[string][]base.Z) {
 	tb.Helper()
 	for q, entries := range archived {
@@ -289,7 +289,7 @@ func SeedAllArchivedQueues(tb testing.TB, r redis.UniversalClient, archived map[
 	}
 }
 
-// SeedAllLease initializes all of the lease sets with the given entries.
+// SeedAllLease initializes all the lease sets with the given entries.
 func SeedAllLease(tb testing.TB, r redis.UniversalClient, lease map[string][]base.Z) {
 	tb.Helper()
 	for q, entries := range lease {
@@ -297,7 +297,7 @@ func SeedAllLease(tb testing.TB, r redis.UniversalClient, lease map[string][]bas
 	}
 }
 
-// SeedAllCompletedQueues initializes all of the completed queues with the given entries.
+// SeedAllCompletedQueues initializes all the completed queues with the given entries.
 func SeedAllCompletedQueues(tb testing.TB, r redis.UniversalClient, completed map[string][]base.Z) {
 	tb.Helper()
 	for q, entries := range completed {

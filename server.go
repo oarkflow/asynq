@@ -102,17 +102,18 @@ func (s serverStateValue) String() string {
 // Config specifies the server's background-task processing behavior.
 type Config struct {
 	RedisClientOpt RedisClientOpt `json:"redis_opt"`
+	Mode           Mode           `json:"mode"`
+	NoService      bool           `json:"no_service"`
+	FlowID         string         `json:"flow_id"`
+	FlowPrefix     string         `json:"flow_prefix"`
+	UserID         any            `json:"user_id"`
+	Concurrency    int            `json:"concurrency"`
+	RedisServer    string         `json:"redis_server"`
 	RDB            *rdb.RDB
-	Mode           Mode   `json:"mode"`
-	NoService      bool   `json:"no_service"`
-	FlowID         string `json:"flow_id"`
-	FlowPrefix     string `json:"flow_prefix"`
-	UserID         any    `json:"user_id"`
 	// Maximum number of concurrent processing of tasks.
 	//
 	// If set to a zero or negative value, NewServer will overwrite the value
 	// to the number of CPUs usable by the current process.
-	Concurrency int `json:"concurrency"`
 
 	// BaseContext optionally specifies a function that returns the base context for Handler invocations on this server.
 	//
