@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/rdb"
-	"github.com/rs/xid"
-	"golang.org/x/sync/errgroup"
 	"strings"
 	"sync"
+
+	"github.com/oarkflow/xid"
+	"golang.org/x/sync/errgroup"
+
+	"github.com/oarkflow/asynq/internal/base"
+	"github.com/oarkflow/asynq/internal/rdb"
 )
 
 type Branch struct {

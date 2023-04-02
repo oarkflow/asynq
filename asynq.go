@@ -9,12 +9,13 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/oarkflow/asynq/internal/base"
 	"net"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/oarkflow/asynq/internal/base"
 
 	"github.com/redis/go-redis/v9"
 )

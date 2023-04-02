@@ -7,14 +7,16 @@ package asynq
 import (
 	"context"
 	"fmt"
-	"github.com/rs/xid"
 	"strings"
 	"time"
+
+	"github.com/oarkflow/xid"
+
+	"github.com/redis/go-redis/v9"
 
 	"github.com/oarkflow/asynq/internal/base"
 	"github.com/oarkflow/asynq/internal/errors"
 	"github.com/oarkflow/asynq/internal/rdb"
-	"github.com/redis/go-redis/v9"
 )
 
 // A Client is responsible for scheduling tasks.

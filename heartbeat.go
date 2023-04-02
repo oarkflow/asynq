@@ -5,10 +5,11 @@
 package asynq
 
 import (
-	"github.com/rs/xid"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/oarkflow/xid"
 
 	"github.com/oarkflow/asynq/internal/base"
 	"github.com/oarkflow/asynq/internal/log"

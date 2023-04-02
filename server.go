@@ -9,13 +9,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/rs/xid"
 	"math"
 	"math/rand"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/oarkflow/xid"
 
 	"github.com/oarkflow/asynq/internal/base"
 	"github.com/oarkflow/asynq/internal/log"

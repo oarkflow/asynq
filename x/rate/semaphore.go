@@ -4,10 +4,12 @@ package rate
 import (
 	"context"
 	"fmt"
-	"github.com/oarkflow/asynq"
-	"github.com/redis/go-redis/v9"
 	"strings"
 	"time"
+
+	"github.com/redis/go-redis/v9"
+
+	"github.com/oarkflow/asynq"
 
 	asynqcontext "github.com/oarkflow/asynq/internal/context"
 )

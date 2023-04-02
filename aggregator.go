@@ -6,10 +6,11 @@ package asynq
 
 import (
 	"context"
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/log"
 	"sync"
 	"time"
+
+	"github.com/oarkflow/asynq/internal/base"
+	"github.com/oarkflow/asynq/internal/log"
 )
 
 // An aggregator is responsible for checking groups and aggregate into one task

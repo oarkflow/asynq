@@ -8,16 +8,18 @@ package rdb
 import (
 	"context"
 	"fmt"
-	"github.com/rs/xid"
 	"math"
 	"sync"
 	"time"
 
+	"github.com/oarkflow/xid"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/spf13/cast"
+
 	"github.com/oarkflow/asynq/internal/base"
 	"github.com/oarkflow/asynq/internal/errors"
 	"github.com/oarkflow/asynq/internal/timeutil"
-	"github.com/redis/go-redis/v9"
-	"github.com/spf13/cast"
 )
 
 const statsTTL = 90 * 24 * time.Hour // 90 days

@@ -8,17 +8,19 @@ package asynqtest
 import (
 	"context"
 	"encoding/json"
-	"github.com/rs/xid"
 	"math"
 	"sort"
 	"testing"
 	"time"
 
+	"github.com/oarkflow/xid"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/redis/go-redis/v9"
+
 	"github.com/oarkflow/asynq/internal/base"
 	"github.com/oarkflow/asynq/internal/timeutil"
-	"github.com/redis/go-redis/v9"
 )
 
 // EquateInt64Approx returns a Comparer option that treats int64 values
@@ -335,7 +337,7 @@ func seedRedisZSet(tb testing.TB, c redis.UniversalClient, key string,
 	for _, item := range items {
 		msg := item.Message
 		encoded := MustMarshal(tb, msg)
-		z := &redis.Z{Member: msg.ID, Score: float64(item.Score)}
+		z := redis.Z{Member: msg.ID, Score: float64(item.Score)}
 		if err := c.ZAdd(context.Background(), key, z).Err(); err != nil {
 			tb.Fatal(err)
 		}

@@ -2,9 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/oarkflow/asynq"
 	"log"
 	"time"
+
+	"github.com/oarkflow/asynq"
 )
 
 const redisAddrWorker = "127.0.0.1:6379"
