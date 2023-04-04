@@ -545,6 +545,16 @@ func (flow *Flow) Prepare() {
 	for _, branch := range flow.Branches {
 		flow.branches[branch.Key] = branch.ConditionalNodes
 	}
+	if flow.FirstNode == "" {
+		for node, handler := range flow.NodeHandler {
+			if handler.GetType() == "input" {
+				flow.FirstNode = node
+			}
+			if handler.GetType() == "output" {
+				flow.LastNode = node
+			}
+		}
+	}
 }
 
 func (flow *Flow) SetupServer() error {
@@ -554,13 +564,6 @@ func (flow *Flow) SetupServer() error {
 	flow.Prepare()
 	mux := NewServeMux()
 	for node, handler := range flow.NodeHandler {
-		if handler.GetType() == "input" {
-			flow.FirstNode = node
-		}
-		if handler.GetType() == "output" {
-			flow.LastNode = node
-		}
-
 		if flow.Mode == Async {
 			flow.server.AddQueue(node, 1)
 			flow.RDB.Client().SAdd(context.Background(), base.AllQueues, node)
