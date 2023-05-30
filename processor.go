@@ -13,12 +13,13 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	"github.com/oarkflow/asynq/internal/base"
 	asynqcontext "github.com/oarkflow/asynq/internal/context"
 	"github.com/oarkflow/asynq/internal/errors"
 	"github.com/oarkflow/asynq/internal/log"
 	"github.com/oarkflow/asynq/internal/timeutil"
-	"golang.org/x/time/rate"
 )
 
 type processor struct {

@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/rdb"
-	"github.com/oarkflow/xid"
-	"golang.org/x/sync/errgroup"
 	"strings"
 	"sync"
+
+	"github.com/oarkflow/xid"
+	"golang.org/x/sync/errgroup"
+
+	"github.com/oarkflow/asynq/internal/base"
+	"github.com/oarkflow/asynq/internal/rdb"
 )
 
 type Branch struct {
@@ -114,8 +116,17 @@ func (fn *HandleFinalStatus) HandleError(ctx context.Context, task *Task, err er
 	fn.handle(task.Payload(), task.FlowID, task.Type(), "failed")
 }
 
-func NewFlow(redisServer string, cfg Config) *Flow {
-	cfg.RedisClientOpt = RedisClientOpt{Addr: redisServer}
+func NewFlow(config ...Config) *Flow {
+	var cfg Config
+	if len(config) > 0 {
+		cfg = config[0]
+	}
+	if cfg.RedisServer != "" {
+		cfg.RedisClientOpt = RedisClientOpt{Addr: cfg.RedisServer}
+	} else {
+		cfg.Mode = Sync
+	}
+
 	if cfg.Mode == "" {
 		cfg.Mode = Async
 	}
@@ -135,36 +146,41 @@ func NewFlow(redisServer string, cfg Config) *Flow {
 	if cfg.ServerID == "" {
 		cfg.ServerID = cfg.FlowID
 	}
-	cfg.RDB = NewRDB(cfg)
+
 	flow := &Flow{
 		ID:           cfg.FlowID,
 		Mode:         cfg.Mode,
 		UserID:       cfg.UserID,
 		NodeHandler:  make(map[string]Handler),
-		RedisAddress: redisServer,
+		RedisAddress: cfg.RedisServer,
 		CronEntries:  make(map[string]string),
-		RDB:          cfg.RDB,
 		mu:           sync.Mutex{},
 		edges:        make(map[string][]string),
 		loops:        make(map[string][]string),
 		branches:     make(map[string]map[string]string),
-		inspector:    NewInspectorFromRDB(cfg.RDB),
-		scheduler:    NewSchedulerFromRDB(cfg.RDB, nil),
 	}
-	if cfg.CompleteHandler == nil {
-		cfg.CompleteHandler = &HandleFinalStatus{RedisUri: redisServer, flow: flow, config: cfg}
+	if cfg.Mode == Sync {
+		cfg.RDB = NewRDB(cfg)
+		flow.RDB = cfg.RDB
+		flow.inspector = NewInspectorFromRDB(cfg.RDB)
+		flow.scheduler = NewSchedulerFromRDB(cfg.RDB, nil)
+	} else {
+		if cfg.CompleteHandler == nil {
+			cfg.CompleteHandler = &HandleFinalStatus{RedisUri: cfg.RedisServer, flow: flow, config: cfg}
+		}
+		if cfg.DoneHandler == nil {
+			cfg.DoneHandler = &HandleFinalStatus{RedisUri: cfg.RedisServer, flow: flow, config: cfg}
+		}
+		if cfg.ErrorHandler == nil {
+			cfg.ErrorHandler = &HandleFinalStatus{RedisUri: cfg.RedisServer, flow: flow, config: cfg}
+		}
+		flow.Config = cfg
+		if flow.Mode == Async {
+			srv := NewServer(cfg)
+			flow.server = srv
+		}
 	}
-	if cfg.DoneHandler == nil {
-		cfg.DoneHandler = &HandleFinalStatus{RedisUri: redisServer, flow: flow, config: cfg}
-	}
-	if cfg.ErrorHandler == nil {
-		cfg.ErrorHandler = &HandleFinalStatus{RedisUri: redisServer, flow: flow, config: cfg}
-	}
-	flow.Config = cfg
-	if flow.Mode == Async {
-		srv := NewServer(cfg)
-		flow.server = srv
-	}
+
 	return flow
 }
 
@@ -293,10 +309,15 @@ func (flow *Flow) loop(ctx context.Context, task *Task) ([]any, error) {
 					t := NewTask(v, payload, FlowID(task.FlowID), Queue(v))
 					res := flow.ProcessTask(ctx, t, flow.NodeHandler[v])
 					if res.Error != nil {
-						flow.Config.ErrorHandler.HandleError(ctx, task, res.Error)
+						if flow.Config.ErrorHandler != nil {
+							flow.Config.ErrorHandler.HandleError(ctx, task, res.Error)
+						}
+
 						return res.Error
 					} else {
-						flow.Config.CompleteHandler.HandleComplete(ctx, task)
+						if flow.Config.CompleteHandler != nil {
+							flow.Config.CompleteHandler.HandleComplete(ctx, task)
+						}
 					}
 					err = json.Unmarshal(res.Data, &responseData)
 					if err != nil {
@@ -346,10 +367,14 @@ func (flow *Flow) ProcessTask(ctx context.Context, task *Task, handler ...Handle
 	}
 	result := h.ProcessTask(ctx, task)
 	if result.Error != nil {
-		flow.Config.ErrorHandler.HandleError(ctx, task, result.Error)
+		if flow.Config.ErrorHandler != nil {
+			flow.Config.ErrorHandler.HandleError(ctx, task, result.Error)
+		}
 		return result
 	} else {
-		flow.Config.CompleteHandler.HandleComplete(ctx, task)
+		if flow.Config.CompleteHandler != nil {
+			flow.Config.CompleteHandler.HandleComplete(ctx, task)
+		}
 	}
 	if h.GetType() == "loop" {
 		newTask := NewTask(task.Type(), result.Data, FlowID(flow.ID))
@@ -371,10 +396,14 @@ func (flow *Flow) ProcessTask(ctx context.Context, task *Task, handler ...Handle
 				t := NewTask(c, result.Data, FlowID(task.FlowID))
 				res := flow.ProcessTask(ctx, t, flow.NodeHandler[c])
 				if res.Error != nil {
-					flow.Config.ErrorHandler.HandleError(ctx, task, res.Error)
+					if flow.Config.ErrorHandler != nil {
+						flow.Config.ErrorHandler.HandleError(ctx, task, res.Error)
+					}
 					return res
 				} else {
-					flow.Config.CompleteHandler.HandleComplete(ctx, task)
+					if flow.Config.CompleteHandler != nil {
+						flow.Config.CompleteHandler.HandleComplete(ctx, task)
+					}
 				}
 				result = res
 			}
@@ -385,10 +414,14 @@ func (flow *Flow) ProcessTask(ctx context.Context, task *Task, handler ...Handle
 			t := NewTask(v, result.Data, FlowID(task.FlowID))
 			res := flow.ProcessTask(ctx, t, flow.NodeHandler[v])
 			if res.Error != nil {
-				flow.Config.ErrorHandler.HandleError(ctx, task, res.Error)
+				if flow.Config.ErrorHandler != nil {
+					flow.Config.ErrorHandler.HandleError(ctx, task, res.Error)
+				}
 				return res
 			} else {
-				flow.Config.CompleteHandler.HandleComplete(ctx, task)
+				if flow.Config.CompleteHandler != nil {
+					flow.Config.CompleteHandler.HandleComplete(ctx, task)
+				}
 			}
 			result = res
 		}
@@ -512,6 +545,16 @@ func (flow *Flow) Prepare() {
 	for _, branch := range flow.Branches {
 		flow.branches[branch.Key] = branch.ConditionalNodes
 	}
+	if flow.FirstNode == "" {
+		for node, handler := range flow.NodeHandler {
+			if handler.GetType() == "input" {
+				flow.FirstNode = node
+			}
+			if handler.GetType() == "output" {
+				flow.LastNode = node
+			}
+		}
+	}
 }
 
 func (flow *Flow) SetupServer() error {
@@ -521,13 +564,6 @@ func (flow *Flow) SetupServer() error {
 	flow.Prepare()
 	mux := NewServeMux()
 	for node, handler := range flow.NodeHandler {
-		if handler.GetType() == "input" {
-			flow.FirstNode = node
-		}
-		if handler.GetType() == "output" {
-			flow.LastNode = node
-		}
-
 		if flow.Mode == Async {
 			flow.server.AddQueue(node, 1)
 			flow.RDB.Client().SAdd(context.Background(), base.AllQueues, node)

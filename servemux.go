@@ -183,5 +183,5 @@ func NotFound(ctx context.Context, task *Task) Result {
 	}
 }
 
-// NotFoundHandler returns a simple task handler that returns a ``not found`` error.
+// NotFoundHandler returns a simple task handler that returns a “not found“ error.
 func NotFoundHandler() Handler { return HandlerFunc(NotFound) }

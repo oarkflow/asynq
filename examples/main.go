@@ -2,9 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/oarkflow/asynq"
 	"log"
 	"time"
+
+	"github.com/oarkflow/asynq"
 )
 
 const redisAddrWorker = "127.0.0.1:6379"
@@ -15,7 +16,7 @@ func main() {
 }
 func send(mode asynq.Mode) {
 	cfg := asynq.Config{Mode: mode}
-	flow := asynq.NewFlow(redisAddrWorker, cfg)
+	flow := asynq.NewFlow(cfg)
 	flow.AddHandler("email:deliver", &EmailDelivery{Operation{Type: "process"}})
 	flow.AddHandler("prepare:email", &PrepareEmail{Operation{Type: "process"}})
 	flow.AddHandler("get:input", &GetData{Operation{Type: "input"}})

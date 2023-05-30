@@ -11,8 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/oarkflow/asynq/internal/base"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/oarkflow/asynq/internal/base"
 )
 
 var errRedisDown = errors.New("testutil: redis is down")

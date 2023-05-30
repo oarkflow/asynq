@@ -6,16 +6,18 @@ package asynq
 
 import (
 	"fmt"
-	"github.com/oarkflow/xid"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/oarkflow/xid"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/robfig/cron/v3"
+
 	"github.com/oarkflow/asynq/internal/base"
 	"github.com/oarkflow/asynq/internal/log"
 	"github.com/oarkflow/asynq/internal/rdb"
-	"github.com/redis/go-redis/v9"
-	"github.com/robfig/cron/v3"
 )
 
 // A Scheduler kicks off tasks at regular intervals based on the user defined schedule.
