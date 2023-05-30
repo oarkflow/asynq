@@ -162,6 +162,7 @@ func NewFlow(config ...Config) *Flow {
 	if cfg.Mode == Sync {
 		cfg.RDB = NewRDB(cfg)
 		flow.RDB = cfg.RDB
+		flow.Config = cfg
 		flow.inspector = NewInspectorFromRDB(cfg.RDB)
 		flow.scheduler = NewSchedulerFromRDB(cfg.RDB, nil)
 	} else {
