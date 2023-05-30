@@ -7,11 +7,11 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/oarkflow/xid v1.2.5
 	github.com/prometheus/client_golang v1.13.0
-	github.com/redis/go-redis/v9 v9.0.2
+	github.com/redis/go-redis/v9 v9.0.5
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/spf13/cast v1.5.0
-	golang.org/x/sync v0.1.0
-	golang.org/x/sys v0.6.0
+	github.com/spf13/cast v1.5.1
+	golang.org/x/sync v0.2.0
+	golang.org/x/sys v0.8.0
 	golang.org/x/time v0.3.0
 	google.golang.org/protobuf v1.30.0
 )
