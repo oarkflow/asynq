@@ -22,7 +22,7 @@ func send(mode asynq.Mode) {
 	flow.AddHandler("loop", &Loop{Operation{Type: "loop"}})
 	flow.AddHandler("condition", &Condition{Operation{Type: "condition"}})
 	flow.AddHandler("store:data", &StoreData{Operation{Type: "process"}})
-	flow.AddBranch("condition", map[string]string{
+	flow.AddBranch("condition1", map[string]string{
 		"pass": "email:deliver",
 		"fail": "store:data",
 	})

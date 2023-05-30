@@ -8,7 +8,7 @@ package asynqtest
 import (
 	"context"
 	"encoding/json"
-	"github.com/rs/xid"
+	"github.com/oarkflow/xid"
 	"math"
 	"sort"
 	"testing"
@@ -335,7 +335,7 @@ func seedRedisZSet(tb testing.TB, c redis.UniversalClient, key string,
 	for _, item := range items {
 		msg := item.Message
 		encoded := MustMarshal(tb, msg)
-		z := &redis.Z{Member: msg.ID, Score: float64(item.Score)}
+		z := redis.Z{Member: msg.ID, Score: float64(item.Score)}
 		if err := c.ZAdd(context.Background(), key, z).Err(); err != nil {
 			tb.Fatal(err)
 		}

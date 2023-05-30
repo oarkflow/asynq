@@ -5,7 +5,7 @@
 package testutil
 
 import (
-	"github.com/rs/xid"
+	"github.com/oarkflow/xid"
 	"time"
 
 	"github.com/oarkflow/asynq/internal/base"

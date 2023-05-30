@@ -7,7 +7,7 @@ package asynq
 import (
 	"context"
 	"fmt"
-	"github.com/rs/xid"
+	"github.com/oarkflow/xid"
 	"strings"
 	"time"
 

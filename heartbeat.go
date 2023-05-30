@@ -5,7 +5,7 @@
 package asynq
 
 import (
-	"github.com/rs/xid"
+	"github.com/oarkflow/xid"
 	"os"
 	"sync"
 	"time"

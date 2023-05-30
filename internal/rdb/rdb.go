@@ -8,7 +8,7 @@ package rdb
 import (
 	"context"
 	"fmt"
-	"github.com/rs/xid"
+	"github.com/oarkflow/xid"
 	"math"
 	"sync"
 	"time"

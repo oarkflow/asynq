@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/rs/xid"
+	"github.com/oarkflow/xid"
 	"math"
 	"math/rand"
 	"runtime"
