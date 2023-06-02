@@ -14,7 +14,7 @@ type Operation struct {
 }
 
 func (e *Operation) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
-	return asynq.Result{Data: task.Payload()}
+	return asynq.Result{Data: task.Payload(), Ctx: ctx}
 }
 
 func (e *Operation) GetType() string {
@@ -33,6 +33,11 @@ type Loop struct {
 	Operation
 }
 
+func (e *Loop) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
+	cnt := context.WithValue(ctx, "extra_params", map[string]any{"iphone": true})
+	return asynq.Result{Data: task.Payload(), Ctx: cnt}
+}
+
 type Condition struct {
 	Operation
 }
@@ -42,10 +47,10 @@ func (e *Condition) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Res
 	json.Unmarshal(task.Payload(), &data)
 	if data["email"].(string) == "abc.xyz@gmail.com" {
 		fmt.Println("Checking...", data, "Pass...")
-		return asynq.Result{Data: task.Payload(), Status: "pass"}
+		return asynq.Result{Data: task.Payload(), Status: "pass", Ctx: ctx}
 	}
 	fmt.Println("Checking...", data, "Fail...")
-	return asynq.Result{Data: task.Payload(), Status: "fail"}
+	return asynq.Result{Data: task.Payload(), Status: "fail", Ctx: ctx}
 }
 
 type PrepareEmail struct {
@@ -58,7 +63,7 @@ func (e *PrepareEmail) ProcessTask(ctx context.Context, task *asynq.Task) asynq.
 	data["email_valid"] = true
 	d, _ := json.Marshal(data)
 	fmt.Println("Preparing...", string(d))
-	return asynq.Result{Data: d}
+	return asynq.Result{Data: d, Ctx: ctx}
 }
 
 type EmailDelivery struct {
@@ -69,7 +74,7 @@ func (e *EmailDelivery) ProcessTask(ctx context.Context, task *asynq.Task) asynq
 	var data map[string]any
 	json.Unmarshal(task.Payload(), &data)
 	fmt.Println("Sending Email...", data)
-	return asynq.Result{Data: task.Payload()}
+	return asynq.Result{Data: task.Payload(), Ctx: ctx}
 }
 
 type StoreData struct {
@@ -80,5 +85,5 @@ func (e *StoreData) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Res
 	var data map[string]any
 	json.Unmarshal(task.Payload(), &data)
 	fmt.Println("Storing Data...", data)
-	return asynq.Result{Data: task.Payload()}
+	return asynq.Result{Data: task.Payload(), Ctx: ctx}
 }

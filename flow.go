@@ -268,7 +268,15 @@ func (flow *Flow) Enqueue(ctx context.Context, queueName string, broker base.Bro
 }
 
 func (flow *Flow) loop(ctx context.Context, task *Task) ([]any, error) {
+	extraParams := map[string]any{}
 	g, ctx := errgroup.WithContext(ctx)
+	ep := ctx.Value("extra_params")
+	switch ep := ep.(type) {
+	case map[string]any:
+		extraParams = ep
+	case string:
+		json.Unmarshal([]byte(ep), &extraParams)
+	}
 	result := make(chan interface{})
 	var rs, results []interface{}
 	err := json.Unmarshal(task.Payload(), &rs)
@@ -282,6 +290,11 @@ func (flow *Flow) loop(ctx context.Context, task *Task) ([]any, error) {
 			currentData := make(map[string]any)
 			switch s := single.(type) {
 			case map[string]any:
+				if len(extraParams) > 0 {
+					for k, v := range extraParams {
+						s[k] = v
+					}
+				}
 				id := xid.New().String()
 				if _, ok := s[flow.Config.idKey]; !ok {
 					s[flow.Config.idKey] = id
@@ -378,8 +391,14 @@ func (flow *Flow) ProcessTask(ctx context.Context, task *Task, handler ...Handle
 		}
 	}
 	if h.GetType() == "loop" {
+		var c context.Context
+		if result.Ctx != nil {
+			c = result.Ctx
+		} else {
+			c = ctx
+		}
 		newTask := NewTask(task.Type(), result.Data, FlowID(flow.ID))
-		results, err := flow.loop(ctx, newTask)
+		results, err := flow.loop(c, newTask)
 		if err != nil {
 			result.Error = err
 			return result
@@ -392,18 +411,24 @@ func (flow *Flow) ProcessTask(ctx context.Context, task *Task, handler ...Handle
 		result.Data = tmp
 	}
 	if h.GetType() == "condition" {
+		var ct context.Context
+		if result.Ctx != nil {
+			ct = result.Ctx
+		} else {
+			ct = ctx
+		}
 		if f, ok := flow.branches[task.Type()]; ok && result.Status != "" {
 			if c, o := f[result.Status]; o {
 				t := NewTask(c, result.Data, FlowID(task.FlowID))
-				res := flow.ProcessTask(ctx, t, flow.NodeHandler[c])
+				res := flow.ProcessTask(ct, t, flow.NodeHandler[c])
 				if res.Error != nil {
 					if flow.Config.ErrorHandler != nil {
-						flow.Config.ErrorHandler.HandleError(ctx, task, res.Error)
+						flow.Config.ErrorHandler.HandleError(ct, task, res.Error)
 					}
 					return res
 				} else {
 					if flow.Config.CompleteHandler != nil {
-						flow.Config.CompleteHandler.HandleComplete(ctx, task)
+						flow.Config.CompleteHandler.HandleComplete(ct, task)
 					}
 				}
 				result = res
@@ -411,17 +436,23 @@ func (flow *Flow) ProcessTask(ctx context.Context, task *Task, handler ...Handle
 		}
 	}
 	if f, ok := flow.edges[task.Type()]; ok {
+		var ct context.Context
+		if result.Ctx != nil {
+			ct = result.Ctx
+		} else {
+			ct = ctx
+		}
 		for _, v := range f {
 			t := NewTask(v, result.Data, FlowID(task.FlowID))
-			res := flow.ProcessTask(ctx, t, flow.NodeHandler[v])
+			res := flow.ProcessTask(ct, t, flow.NodeHandler[v])
 			if res.Error != nil {
 				if flow.Config.ErrorHandler != nil {
-					flow.Config.ErrorHandler.HandleError(ctx, task, res.Error)
+					flow.Config.ErrorHandler.HandleError(ct, task, res.Error)
 				}
 				return res
 			} else {
 				if flow.Config.CompleteHandler != nil {
-					flow.Config.CompleteHandler.HandleComplete(ctx, task)
+					flow.Config.CompleteHandler.HandleComplete(ct, task)
 				}
 			}
 			result = res

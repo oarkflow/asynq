@@ -662,6 +662,7 @@ type Handler interface {
 }
 
 type Result struct {
+	Ctx    context.Context
 	Status string `json:"status"`
 	Data   []byte `json:"data"`
 	Error  error  `json:"error"`
