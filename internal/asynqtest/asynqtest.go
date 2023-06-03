@@ -7,11 +7,12 @@ package asynqtest
 
 import (
 	"context"
-	"encoding/json"
 	"math"
 	"sort"
 	"testing"
 	"time"
+
+	json "github.com/bytedance/sonic"
 
 	"github.com/oarkflow/xid"
 

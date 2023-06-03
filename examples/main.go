@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/json"
+	json "github.com/bytedance/sonic"
 	"log"
 	"time"
 

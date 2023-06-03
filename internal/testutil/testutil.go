@@ -7,7 +7,7 @@ package testutil
 
 import (
 	"context"
-	"encoding/json"
+	json "github.com/bytedance/sonic"
 	"math"
 	"sort"
 	"testing"

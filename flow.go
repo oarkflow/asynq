@@ -2,8 +2,8 @@ package asynq
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	json "github.com/bytedance/sonic"
 	"strings"
 	"sync"
 
