@@ -577,7 +577,7 @@ return res
 `)
 
 func (r *RDB) GroupStats(qname string) ([]*GroupStat, error) {
-	var op errors.Op = "RDB.GroupStats"
+	var op errors.Op = "rdb.GroupStats"
 	keys := []string{base.AllGroups(qname)}
 	argv := []any{base.GroupKeyPrefix(qname)}
 	res, err := groupStatsCmd.Run(context.Background(), r.client, keys, argv...).Result()

@@ -71,8 +71,7 @@ type EmailDelivery struct {
 }
 
 func (e *EmailDelivery) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
-	var data map[string]any
-	json.Unmarshal(task.Payload(), &data)
+	data, _, _ := task.AsMap()
 	fmt.Println("Sending Email...", data)
 	return asynq.Result{Data: task.Payload(), Ctx: ctx}
 }
@@ -82,8 +81,7 @@ type StoreData struct {
 }
 
 func (e *StoreData) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
-	var data map[string]any
-	json.Unmarshal(task.Payload(), &data)
+	data, _, _ := task.AsMap()
 	fmt.Println("Storing Data...", data)
 	return asynq.Result{Data: task.Payload(), Ctx: ctx}
 }

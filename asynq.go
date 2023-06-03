@@ -56,6 +56,22 @@ func (t *Task) MarshalBinary() ([]byte, error) {
 func (t *Task) Type() string    { return t.typename }
 func (t *Task) Payload() []byte { return t.payload }
 
+func (t *Task) AsMap() (data any, slice bool, err error) {
+	var mp map[string]any
+	err = json.Unmarshal(t.payload, &mp)
+	if err != nil {
+		var mps []map[string]any
+		err = json.Unmarshal(t.payload, &mps)
+		if err == nil {
+			data = mps
+			slice = true
+		}
+	} else {
+		data = mp
+	}
+	return
+}
+
 // ResultWriter returns a pointer to the ResultWriter associated with the task.
 //
 // Nil pointer is returned if called on a newly created task (i.e. task created by calling NewTask).

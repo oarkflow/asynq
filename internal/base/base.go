@@ -235,69 +235,21 @@ func AllAggregationSets(qname string) string {
 // TaskMessage is the internal representation of a task with additional metadata fields.
 // Serialized data of this type gets written to redis.
 type TaskMessage struct {
-	// Type indicates the kind of the task to be performed.
-	Type string
-
-	// FlowID indicates the kind of the task to be performed.
-	FlowID string
-
-	// Payload holds data needed to process the task.
-	Payload []byte
-
-	// ID is a unique identifier for each task.
-	ID string
-
-	// Queue is a name this message should be enqueued to.
-	Queue string
-
-	// Retry is the max number of retry for this task.
-	Retry int
-
-	// Retried is the number of times we've retried this task so far.
-	Retried int
-
-	// ErrorMsg holds the error message from the last failure.
-	ErrorMsg string
-
-	// Time of last failure in Unix time,
-	// the number of seconds elapsed since January 1, 1970 UTC.
-	//
-	// Use zero to indicate no last failure
+	UniqueKey    string
+	FlowID       string
+	ID           string
+	Queue        string
+	GroupKey     string
+	Type         string
+	ErrorMsg     string
+	Payload      []byte
+	Retried      int
+	Timeout      int64
+	Deadline     int64
 	LastFailedAt int64
-
-	// Timeout specifies timeout in seconds.
-	// If task processing doesn't complete within the timeout, the task will be retried
-	// if retry count is remaining. Otherwise it will be moved to the archive.
-	//
-	// Use zero to indicate no timeout.
-	Timeout int64
-
-	// Deadline specifies the deadline for the task in Unix time,
-	// the number of seconds elapsed since January 1, 1970 UTC.
-	// If task processing doesn't complete before the deadline, the task will be retried
-	// if retry count is remaining. Otherwise it will be moved to the archive.
-	//
-	// Use zero to indicate no deadline.
-	Deadline int64
-
-	// UniqueKey holds the redis key used for uniqueness lock for this task.
-	//
-	// Empty string indicates that no uniqueness lock was used.
-	UniqueKey string
-
-	// GroupKey holds the group key used for task aggregation.
-	//
-	// Empty string indicates no aggregation is used for this task.
-	GroupKey string
-
-	// Retention specifies the number of seconds the task should be retained after completion.
-	Retention int64
-
-	// CompletedAt is the time the task was processed successfully in Unix time,
-	// the number of seconds elapsed since January 1, 1970 UTC.
-	//
-	// Use zero to indicate no value.
-	CompletedAt int64
+	Retry        int
+	Retention    int64
+	CompletedAt  int64
 }
 
 // EncodeMessage marshals the given task message and returns an encoded bytes.
@@ -351,10 +303,10 @@ func DecodeMessage(data []byte) (*TaskMessage, error) {
 
 // TaskInfo describes a task message and its metadata.
 type TaskInfo struct {
-	Message       *TaskMessage
-	State         TaskState
 	NextProcessAt time.Time
+	Message       *TaskMessage
 	Result        []byte
+	State         TaskState
 }
 
 // Z represents sorted set member.
@@ -365,15 +317,15 @@ type Z struct {
 
 // ServerInfo holds information about a running server.
 type ServerInfo struct {
-	Host              string
-	PID               int
-	ServerID          string
-	Concurrency       int
-	Queues            map[string]int
-	StrictPriority    bool
-	Status            string
 	Started           time.Time
+	Queues            map[string]int
+	Host              string
+	ServerID          string
+	Status            string
+	PID               int
+	Concurrency       int
 	ActiveWorkerCount int
+	StrictPriority    bool
 }
 
 // EncodeServerInfo marshals the given ServerInfo and returns the encoded bytes.
@@ -431,15 +383,15 @@ func DecodeServerInfo(b []byte) (*ServerInfo, error) {
 
 // WorkerInfo holds information about a running worker.
 type WorkerInfo struct {
+	Started  time.Time
+	Deadline time.Time
 	Host     string
-	PID      int
 	ServerID string
 	ID       string
 	Type     string
-	Payload  []byte
 	Queue    string
-	Started  time.Time
-	Deadline time.Time
+	Payload  []byte
+	PID      int
 }
 
 // EncodeWorkerInfo marshals the given WorkerInfo and returns the encoded bytes.
@@ -497,27 +449,13 @@ func DecodeWorkerInfo(b []byte) (*WorkerInfo, error) {
 
 // SchedulerEntry holds information about a periodic task registered with a scheduler.
 type SchedulerEntry struct {
-	// Identifier of this entry.
-	ID string
-
-	// Spec describes the schedule of this entry.
-	Spec string
-
-	// Type is the task type of the periodic task.
-	Type string
-
-	// Payload is the payload of the periodic task.
+	Next    time.Time
+	Prev    time.Time
+	ID      string
+	Spec    string
+	Type    string
 	Payload []byte
-
-	// Opts is the options for the periodic task.
-	Opts []string
-
-	// Next shows the next time the task will be enqueued.
-	Next time.Time
-
-	// Prev shows the last time the task was enqueued.
-	// Zero time if task was never enqueued.
-	Prev time.Time
+	Opts    []string
 }
 
 // EncodeSchedulerEntry marshals the given entry and returns an encoded bytes.
@@ -571,11 +509,8 @@ func DecodeSchedulerEntry(b []byte) (*SchedulerEntry, error) {
 
 // SchedulerEnqueueEvent holds information about an enqueue event by a scheduler.
 type SchedulerEnqueueEvent struct {
-	// ID of the task that was enqueued.
-	TaskID string
-
-	// Time the task was enqueued.
 	EnqueuedAt time.Time
+	TaskID     string
 }
 
 // EncodeSchedulerEnqueueEvent marshals the given event
@@ -615,8 +550,8 @@ func DecodeSchedulerEnqueueEvent(b []byte) (*SchedulerEnqueueEvent, error) {
 //
 // Cancelations are safe for concurrent use by multiple goroutines.
 type Cancelations struct {
-	mu          sync.Mutex
 	cancelFuncs map[string]context.CancelFunc
+	mu          sync.Mutex
 }
 
 // NewCancelations returns a Cancelations instance.
@@ -651,13 +586,11 @@ func (c *Cancelations) Get(id string) (fn context.CancelFunc, ok bool) {
 // Lease is a time bound lease for worker to process task.
 // It provides a communication channel between lessor and lessee about lease expiration.
 type Lease struct {
-	once sync.Once
-	ch   chan struct{}
-
-	Clock timeutil.Clock
-
+	expireAt time.Time
+	Clock    timeutil.Clock
+	ch       chan struct{}
+	once     sync.Once
 	mu       sync.Mutex
-	expireAt time.Time // guarded by mu
 }
 
 func NewLease(expirationTime time.Time) *Lease {

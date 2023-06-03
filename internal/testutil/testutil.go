@@ -541,9 +541,9 @@ func getMessagesFromZSetWithScores(tb testing.TB, r redis.UniversalClient,
 
 // TaskSeedData holds the data required to seed tasks under the task key in test.
 type TaskSeedData struct {
+	PendingSince time.Time
 	Msg          *base.TaskMessage
 	State        base.TaskState
-	PendingSince time.Time
 }
 
 func SeedTasks(tb testing.TB, r redis.UniversalClient, taskData []*TaskSeedData) {

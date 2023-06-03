@@ -21,11 +21,9 @@ var errRedisDown = errors.New("testutil: redis is down")
 // TestBroker is a broker implementation which enables
 // to simulate Redis failure in tests.
 type TestBroker struct {
+	real     base.Broker
 	mu       sync.Mutex
 	sleeping bool
-
-	// real broker
-	real base.Broker
 }
 
 // Make sure TestBroker implements Broker interface at compile time.

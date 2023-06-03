@@ -21,9 +21,9 @@ import (
 // It contains a number of fields, each of different type.
 // An Error value may leave some values unset.
 type Error struct {
-	Code Code
-	Op   Op
 	Err  error
+	Op   Op
+	Code Code
 }
 
 func (e *Error) DebugString() string {
@@ -241,8 +241,8 @@ func IsTaskAlreadyArchived(err error) bool {
 
 // RedisCommandError indicates that the given redis command returned error.
 type RedisCommandError struct {
-	Command string // redis command (e.g. LRANGE, ZADD, etc)
-	Err     error  // underlying error
+	Err     error
+	Command string
 }
 
 func (e *RedisCommandError) Error() string {

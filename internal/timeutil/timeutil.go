@@ -32,8 +32,8 @@ func (_ *realTimeClock) Now() time.Time { return time.Now() }
 // Time is advanced by explicit call to the AdvanceTime() or SetTime() functions.
 // This object is concurrency safe.
 type SimulatedClock struct {
+	t  time.Time
 	mu sync.Mutex
-	t  time.Time // guarded by mu
 }
 
 func NewSimulatedClock(t time.Time) *SimulatedClock {

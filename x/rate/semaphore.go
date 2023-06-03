@@ -39,8 +39,8 @@ func NewSemaphore(rco asynq.RedisConnOpt, scope string, maxTokens int) *Semaphor
 // Semaphore is a distributed counting semaphore which can be used to set maxTokens across multiple asynq servers.
 type Semaphore struct {
 	rc        redis.UniversalClient
-	maxTokens int
 	scope     string
+	maxTokens int
 }
 
 // KEYS[1] -> asynq:sema:<scope>

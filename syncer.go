@@ -26,9 +26,9 @@ type syncer struct {
 }
 
 type syncRequest struct {
-	fn       func() error // sync operation
-	errMsg   string       // error message
-	deadline time.Time    // request should be dropped if deadline has been exceeded
+	deadline time.Time
+	fn       func() error
+	errMsg   string
 }
 
 type syncerParams struct {

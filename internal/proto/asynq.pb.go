@@ -30,49 +30,23 @@ const (
 // Next ID: 16
 type TaskMessage struct {
 	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
+	FlowId        string `protobuf:"bytes,15,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
+	Type          string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Id            string `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
+	Queue         string `protobuf:"bytes,4,opt,name=queue,proto3" json:"queue,omitempty"`
+	GroupKey      string `protobuf:"bytes,14,opt,name=group_key,json=groupKey,proto3" json:"group_key,omitempty"`
+	UniqueKey     string `protobuf:"bytes,10,opt,name=unique_key,json=uniqueKey,proto3" json:"unique_key,omitempty"`
+	ErrorMsg      string `protobuf:"bytes,7,opt,name=error_msg,json=errorMsg,proto3" json:"error_msg,omitempty"`
 	unknownFields protoimpl.UnknownFields
-
-	// Type indicates the kind of the task to be performed.
-	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
-	// Payload holds data needed to process the task.
-	Payload []byte `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
-	// Unique identifier for the task.
-	Id string `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
-	// Name of the queue to which this task belongs.
-	Queue string `protobuf:"bytes,4,opt,name=queue,proto3" json:"queue,omitempty"`
-	// Max number of retries for this task.
-	Retry int32 `protobuf:"varint,5,opt,name=retry,proto3" json:"retry,omitempty"`
-	// Number of times this task has been retried so far.
-	Retried int32 `protobuf:"varint,6,opt,name=retried,proto3" json:"retried,omitempty"`
-	// Error message from the last failure.
-	ErrorMsg string `protobuf:"bytes,7,opt,name=error_msg,json=errorMsg,proto3" json:"error_msg,omitempty"`
-	// Time of last failure in Unix time,
-	// the number of seconds elapsed since January 1, 1970 UTC.
-	// Use zero to indicate no last failure.
-	LastFailedAt int64 `protobuf:"varint,11,opt,name=last_failed_at,json=lastFailedAt,proto3" json:"last_failed_at,omitempty"`
-	// Timeout specifies timeout in seconds.
-	// Use zero to indicate no timeout.
-	Timeout int64 `protobuf:"varint,8,opt,name=timeout,proto3" json:"timeout,omitempty"`
-	// Deadline specifies the deadline for the task in Unix time,
-	// the number of seconds elapsed since January 1, 1970 UTC.
-	// Use zero to indicate no deadline.
-	Deadline int64 `protobuf:"varint,9,opt,name=deadline,proto3" json:"deadline,omitempty"`
-	// UniqueKey holds the redis key used for uniqueness lock for this task.
-	// Empty string indicates that no uniqueness lock was used.
-	UniqueKey string `protobuf:"bytes,10,opt,name=unique_key,json=uniqueKey,proto3" json:"unique_key,omitempty"`
-	// GroupKey is a name of the group used for task aggregation.
-	// This field is optional and empty value means no aggregation for the task.
-	GroupKey string `protobuf:"bytes,14,opt,name=group_key,json=groupKey,proto3" json:"group_key,omitempty"`
-	// Retention period specified in a number of seconds.
-	// The task will be stored in redis as a completed task until the TTL
-	// expires.
-	Retention int64 `protobuf:"varint,12,opt,name=retention,proto3" json:"retention,omitempty"`
-	// Time when the task completed in success in Unix time,
-	// the number of seconds elapsed since January 1, 1970 UTC.
-	// This field is populated if result_ttl > 0 upon completion.
-	CompletedAt int64  `protobuf:"varint,13,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
-	FlowId      string `protobuf:"bytes,15,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
+	Payload       []byte `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	Deadline      int64  `protobuf:"varint,9,opt,name=deadline,proto3" json:"deadline,omitempty"`
+	Timeout       int64  `protobuf:"varint,8,opt,name=timeout,proto3" json:"timeout,omitempty"`
+	LastFailedAt  int64  `protobuf:"varint,11,opt,name=last_failed_at,json=lastFailedAt,proto3" json:"last_failed_at,omitempty"`
+	Retention     int64  `protobuf:"varint,12,opt,name=retention,proto3" json:"retention,omitempty"`
+	CompletedAt   int64  `protobuf:"varint,13,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	Retried       int32  `protobuf:"varint,6,opt,name=retried,proto3" json:"retried,omitempty"`
+	Retry         int32  `protobuf:"varint,5,opt,name=retry,proto3" json:"retry,omitempty"`
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TaskMessage) Reset() {
@@ -214,31 +188,18 @@ func (x *TaskMessage) GetFlowId() string {
 
 // ServerInfo holds information about a running server.
 type ServerInfo struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	// Host machine the server is running on.
-	Host string `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
-	// PID of the server process.
-	Pid int32 `protobuf:"varint,2,opt,name=pid,proto3" json:"pid,omitempty"`
-	// Unique identifier for this server.
-	ServerId string `protobuf:"bytes,3,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
-	// Maximum number of concurrency this server will use.
-	Concurrency int32 `protobuf:"varint,4,opt,name=concurrency,proto3" json:"concurrency,omitempty"`
-	// List of queue names with their priorities.
-	// The server will consume tasks from the queues and prioritize
-	// queues with higher priority numbers.
-	Queues map[string]int32 `protobuf:"bytes,5,rep,name=queues,proto3" json:"queues,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
-	// If set, the server will always consume tasks from a queue with higher
-	// priority.
-	StrictPriority bool `protobuf:"varint,6,opt,name=strict_priority,json=strictPriority,proto3" json:"strict_priority,omitempty"`
-	// Status indicates the status of the server.
-	Status string `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	// Time this server was started.
-	StartTime *timestamp.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	// Number of workers currently processing tasks.
+	state             protoimpl.MessageState
+	Queues            map[string]int32     `protobuf:"bytes,5,rep,name=queues,proto3" json:"queues,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+	StartTime         *timestamp.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	Host              string               `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
+	ServerId          string               `protobuf:"bytes,3,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
+	Status            string               `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+	Pid               int32 `protobuf:"varint,2,opt,name=pid,proto3" json:"pid,omitempty"`
+	Concurrency       int32 `protobuf:"varint,4,opt,name=concurrency,proto3" json:"concurrency,omitempty"`
 	ActiveWorkerCount int32 `protobuf:"varint,9,opt,name=active_worker_count,json=activeWorkerCount,proto3" json:"active_worker_count,omitempty"`
+	StrictPriority    bool  `protobuf:"varint,6,opt,name=strict_priority,json=strictPriority,proto3" json:"strict_priority,omitempty"`
 }
 
 func (x *ServerInfo) Reset() {
@@ -339,28 +300,17 @@ func (x *ServerInfo) GetActiveWorkerCount() int32 {
 // WorkerInfo holds information about a running worker.
 type WorkerInfo struct {
 	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
+	StartTime     *timestamp.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	Deadline      *timestamp.Timestamp `protobuf:"bytes,9,opt,name=deadline,proto3" json:"deadline,omitempty"`
+	Host          string               `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
+	ServerId      string               `protobuf:"bytes,3,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
+	TaskId        string               `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	TaskType      string               `protobuf:"bytes,5,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
+	Queue         string               `protobuf:"bytes,7,opt,name=queue,proto3" json:"queue,omitempty"`
 	unknownFields protoimpl.UnknownFields
-
-	// Host matchine this worker is running on.
-	Host string `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
-	// PID of the process in which this worker is running.
-	Pid int32 `protobuf:"varint,2,opt,name=pid,proto3" json:"pid,omitempty"`
-	// ID of the server in which this worker is running.
-	ServerId string `protobuf:"bytes,3,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
-	// ID of the task this worker is processing.
-	TaskId string `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	// Type of the task this worker is processing.
-	TaskType string `protobuf:"bytes,5,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
-	// Payload of the task this worker is processing.
-	TaskPayload []byte `protobuf:"bytes,6,opt,name=task_payload,json=taskPayload,proto3" json:"task_payload,omitempty"`
-	// Name of the queue the task the worker is processing belongs.
-	Queue string `protobuf:"bytes,7,opt,name=queue,proto3" json:"queue,omitempty"`
-	// Time this worker started processing the task.
-	StartTime *timestamp.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	// Deadline by which the worker needs to complete processing
-	// the task. If worker exceeds the deadline, the task will fail.
-	Deadline *timestamp.Timestamp `protobuf:"bytes,9,opt,name=deadline,proto3" json:"deadline,omitempty"`
+	TaskPayload   []byte `protobuf:"bytes,6,opt,name=task_payload,json=taskPayload,proto3" json:"task_payload,omitempty"`
+	sizeCache     protoimpl.SizeCache
+	Pid           int32 `protobuf:"varint,2,opt,name=pid,proto3" json:"pid,omitempty"`
 }
 
 func (x *WorkerInfo) Reset() {
@@ -461,25 +411,16 @@ func (x *WorkerInfo) GetDeadline() *timestamp.Timestamp {
 // SchedulerEntry holds information about a periodic task registered
 // with a scheduler.
 type SchedulerEntry struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	// Identifier of the scheduler entry.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Periodic schedule spec of the entry.
-	Spec string `protobuf:"bytes,2,opt,name=spec,proto3" json:"spec,omitempty"`
-	// Task type of the periodic task.
-	TaskType string `protobuf:"bytes,3,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
-	// Task payload of the periodic task.
-	TaskPayload []byte `protobuf:"bytes,4,opt,name=task_payload,json=taskPayload,proto3" json:"task_payload,omitempty"`
-	// Options used to enqueue the periodic task.
-	EnqueueOptions []string `protobuf:"bytes,5,rep,name=enqueue_options,json=enqueueOptions,proto3" json:"enqueue_options,omitempty"`
-	// Next time the task will be enqueued.
+	state           protoimpl.MessageState
 	NextEnqueueTime *timestamp.Timestamp `protobuf:"bytes,6,opt,name=next_enqueue_time,json=nextEnqueueTime,proto3" json:"next_enqueue_time,omitempty"`
-	// Last time the task was enqueued.
-	// Zero time if task was never enqueued.
 	PrevEnqueueTime *timestamp.Timestamp `protobuf:"bytes,7,opt,name=prev_enqueue_time,json=prevEnqueueTime,proto3" json:"prev_enqueue_time,omitempty"`
+	Id              string               `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Spec            string               `protobuf:"bytes,2,opt,name=spec,proto3" json:"spec,omitempty"`
+	TaskType        string               `protobuf:"bytes,3,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	TaskPayload     []byte   `protobuf:"bytes,4,opt,name=task_payload,json=taskPayload,proto3" json:"task_payload,omitempty"`
+	EnqueueOptions  []string `protobuf:"bytes,5,rep,name=enqueue_options,json=enqueueOptions,proto3" json:"enqueue_options,omitempty"`
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *SchedulerEntry) Reset() {
@@ -567,13 +508,10 @@ func (x *SchedulerEntry) GetPrevEnqueueTime() *timestamp.Timestamp {
 // by a scheduler.
 type SchedulerEnqueueEvent struct {
 	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
+	EnqueueTime   *timestamp.Timestamp `protobuf:"bytes,2,opt,name=enqueue_time,json=enqueueTime,proto3" json:"enqueue_time,omitempty"`
+	TaskId        string               `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
-
-	// ID of the task that was enqueued.
-	TaskId string `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	// Time the task was enqueued.
-	EnqueueTime *timestamp.Timestamp `protobuf:"bytes,2,opt,name=enqueue_time,json=enqueueTime,proto3" json:"enqueue_time,omitempty"`
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SchedulerEnqueueEvent) Reset() {

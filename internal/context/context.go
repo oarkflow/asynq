@@ -14,9 +14,9 @@ import (
 // A taskMetadata holds task scoped data to put in context.
 type taskMetadata struct {
 	id         string
+	qname      string
 	maxRetry   int
 	retryCount int
-	qname      string
 }
 
 // ctxKey type is unexported to prevent collisions with context keys defined in

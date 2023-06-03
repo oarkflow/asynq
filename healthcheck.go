@@ -15,24 +15,18 @@ import (
 // healthchecker is responsible for pinging broker periodically
 // and call user provided HeathCheckFunc with the ping result.
 type healthchecker struct {
-	logger *log.Logger
-	broker base.Broker
-
-	// channel to communicate back to the long running "healthchecker" goroutine.
-	done chan struct{}
-
-	// interval between healthchecks.
-	interval time.Duration
-
-	// function to call periodically.
+	broker          base.Broker
+	logger          *log.Logger
+	done            chan struct{}
 	healthcheckFunc func(error)
+	interval        time.Duration
 }
 
 type healthcheckerParams struct {
-	logger          *log.Logger
 	broker          base.Broker
-	interval        time.Duration
+	logger          *log.Logger
 	healthcheckFunc func(error)
+	interval        time.Duration
 }
 
 func newHealthChecker(params healthcheckerParams) *healthchecker {

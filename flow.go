@@ -44,18 +44,17 @@ type Flow struct {
 	EnableTaskGrouping bool              `json:"enable_task_grouping"`
 	Status             string            `json:"status"`
 	CronEntries        map[string]string `json:"cron_entries"`
-
-	NodeHandler map[string]Handler
-	RDB         *rdb.RDB
-	Config      Config
-	server      *Server
-	handler     *ServeMux
-	inspector   *Inspector
-	scheduler   *Scheduler
-	edges       map[string][]string
-	loops       map[string][]string
-	branches    map[string]map[string]string
-	mu          sync.Mutex
+	nodeHandler        map[string]Handler
+	rdb                *rdb.RDB
+	Config             Config
+	server             *Server
+	handler            *ServeMux
+	inspector          *Inspector
+	scheduler          *Scheduler
+	edges              map[string][]string
+	loops              map[string][]string
+	branches           map[string]map[string]string
+	mu                 sync.Mutex
 }
 
 type CronReportHandler struct {
@@ -147,11 +146,11 @@ func NewFlow(config ...Config) *Flow {
 		cfg.ServerID = cfg.FlowID
 	}
 
-	flow := &Flow{
+	f := &Flow{
 		ID:           cfg.FlowID,
 		Mode:         cfg.Mode,
 		UserID:       cfg.UserID,
-		NodeHandler:  make(map[string]Handler),
+		nodeHandler:  make(map[string]Handler),
 		RedisAddress: cfg.RedisServer,
 		CronEntries:  make(map[string]string),
 		mu:           sync.Mutex{},
@@ -159,41 +158,37 @@ func NewFlow(config ...Config) *Flow {
 		loops:        make(map[string][]string),
 		branches:     make(map[string]map[string]string),
 	}
-	if cfg.Mode == Sync {
+
+	if cfg.Mode == Async {
 		cfg.RDB = NewRDB(cfg)
-		flow.RDB = cfg.RDB
-		flow.Config = cfg
-		flow.inspector = NewInspectorFromRDB(cfg.RDB)
-		flow.scheduler = NewSchedulerFromRDB(cfg.RDB, nil)
-	} else {
+		f.rdb = cfg.RDB
+		f.inspector = NewInspectorFromRDB(cfg.RDB)
+		f.scheduler = NewSchedulerFromRDB(cfg.RDB, nil)
 		if cfg.CompleteHandler == nil {
-			cfg.CompleteHandler = &HandleFinalStatus{RedisUri: cfg.RedisServer, flow: flow, config: cfg}
+			cfg.CompleteHandler = &HandleFinalStatus{RedisUri: cfg.RedisServer, flow: f, config: cfg}
 		}
 		if cfg.DoneHandler == nil {
-			cfg.DoneHandler = &HandleFinalStatus{RedisUri: cfg.RedisServer, flow: flow, config: cfg}
+			cfg.DoneHandler = &HandleFinalStatus{RedisUri: cfg.RedisServer, flow: f, config: cfg}
 		}
 		if cfg.ErrorHandler == nil {
-			cfg.ErrorHandler = &HandleFinalStatus{RedisUri: cfg.RedisServer, flow: flow, config: cfg}
+			cfg.ErrorHandler = &HandleFinalStatus{RedisUri: cfg.RedisServer, flow: f, config: cfg}
 		}
-		flow.Config = cfg
-		if flow.Mode == Async {
-			srv := NewServer(cfg)
-			flow.server = srv
-		}
+		f.server = NewServer(cfg)
 	}
+	f.Config = cfg
 
-	return flow
+	return f
 }
 
-func (flow *Flow) QueueList() ([]*QueueInfo, error) {
-	queueList, err := flow.inspector.Queues()
+func (f *Flow) QueueList() ([]*QueueInfo, error) {
+	queueList, err := f.inspector.Queues()
 	if err != nil {
 		return nil, err
 	}
 	var queues []*QueueInfo
 	for _, queue := range queueList {
-		if strings.Contains(queue, flow.ID) {
-			info, err := flow.QueueInfo(queue)
+		if strings.Contains(queue, f.ID) {
+			info, err := f.QueueInfo(queue)
 			if err != nil {
 				return nil, err
 			}
@@ -203,63 +198,63 @@ func (flow *Flow) QueueList() ([]*QueueInfo, error) {
 	return queues, nil
 }
 
-func (flow *Flow) QueueHistory(queue string, noOfDays int) ([]*DailyStats, error) {
+func (f *Flow) QueueHistory(queue string, noOfDays int) ([]*DailyStats, error) {
 	if noOfDays == 0 {
 		noOfDays = 7
 	}
-	return flow.inspector.History(queue, noOfDays)
+	return f.inspector.History(queue, noOfDays)
 }
 
-func (flow *Flow) QueueInfo(queue string) (*QueueInfo, error) {
-	return flow.inspector.GetQueueInfo(queue)
+func (f *Flow) QueueInfo(queue string) (*QueueInfo, error) {
+	return f.inspector.GetQueueInfo(queue)
 }
 
-func (flow *Flow) Pause(queue string) error {
-	return flow.inspector.PauseQueue(queue)
+func (f *Flow) Pause(queue string) error {
+	return f.inspector.PauseQueue(queue)
 }
 
-func (flow *Flow) Unpause(queue string) error {
-	return flow.inspector.UnpauseQueue(queue)
+func (f *Flow) Unpause(queue string) error {
+	return f.inspector.UnpauseQueue(queue)
 }
 
-func (flow *Flow) TaskListByStatus(queue string, status string) ([]*TaskInfo, error) {
+func (f *Flow) TaskListByStatus(queue string, status string) ([]*TaskInfo, error) {
 	switch status {
 	case "Active":
-		return flow.inspector.ListActiveTasks(queue)
+		return f.inspector.ListActiveTasks(queue)
 	case "Pending":
-		return flow.inspector.ListPendingTasks(queue)
+		return f.inspector.ListPendingTasks(queue)
 	case "Scheduled":
-		return flow.inspector.ListScheduledTasks(queue)
+		return f.inspector.ListScheduledTasks(queue)
 	case "Archived":
-		return flow.inspector.ListArchivedTasks(queue)
+		return f.inspector.ListArchivedTasks(queue)
 	case "Retry":
-		return flow.inspector.ListRetryTasks(queue)
+		return f.inspector.ListRetryTasks(queue)
 	default:
 		return nil, nil
 	}
 }
 
-func (flow *Flow) ActiveTaskList(queue string) ([]*TaskInfo, error) {
-	return flow.inspector.ListActiveTasks(queue)
+func (f *Flow) ActiveTaskList(queue string) ([]*TaskInfo, error) {
+	return f.inspector.ListActiveTasks(queue)
 }
 
-func (flow *Flow) PendingTaskList(queue string) ([]*TaskInfo, error) {
-	return flow.inspector.ListPendingTasks(queue)
+func (f *Flow) PendingTaskList(queue string) ([]*TaskInfo, error) {
+	return f.inspector.ListPendingTasks(queue)
 }
 
-func (flow *Flow) ScheduledTaskList(queue string) ([]*TaskInfo, error) {
-	return flow.inspector.ListScheduledTasks(queue)
+func (f *Flow) ScheduledTaskList(queue string) ([]*TaskInfo, error) {
+	return f.inspector.ListScheduledTasks(queue)
 }
 
-func (flow *Flow) ArchivedTaskList(queue string) ([]*TaskInfo, error) {
-	return flow.inspector.ListArchivedTasks(queue)
+func (f *Flow) ArchivedTaskList(queue string) ([]*TaskInfo, error) {
+	return f.inspector.ListArchivedTasks(queue)
 }
 
-func (flow *Flow) RetryTaskList(queue string) ([]*TaskInfo, error) {
-	return flow.inspector.ListRetryTasks(queue)
+func (f *Flow) RetryTaskList(queue string) ([]*TaskInfo, error) {
+	return f.inspector.ListRetryTasks(queue)
 }
 
-func (flow *Flow) Enqueue(ctx context.Context, queueName string, broker base.Broker, flowID string, payload []byte, result *Result) {
+func (f *Flow) Enqueue(ctx context.Context, queueName string, broker base.Broker, flowID string, payload []byte, result *Result) {
 	task := NewTask(queueName, payload, FlowID(flowID), Queue(queueName))
 	_, err := EnqueueContext(broker, ctx, task, FlowID(flowID), Queue(queueName))
 	if err != nil {
@@ -267,7 +262,7 @@ func (flow *Flow) Enqueue(ctx context.Context, queueName string, broker base.Bro
 	}
 }
 
-func (flow *Flow) loop(ctx context.Context, task *Task) ([]any, error) {
+func (f *Flow) loop(ctx context.Context, task *Task) ([]any, error) {
 	extraParams := map[string]any{}
 	g, ctx := errgroup.WithContext(ctx)
 	ep := ctx.Value("extra_params")
@@ -296,14 +291,14 @@ func (flow *Flow) loop(ctx context.Context, task *Task) ([]any, error) {
 					}
 				}
 				id := xid.New().String()
-				if _, ok := s[flow.Config.idKey]; !ok {
-					s[flow.Config.idKey] = id
+				if _, ok := s[f.Config.idKey]; !ok {
+					s[f.Config.idKey] = id
 				}
-				if _, ok := s[flow.Config.flowIDKey]; !ok {
-					s[flow.Config.flowIDKey] = flow.ID
+				if _, ok := s[f.Config.flowIDKey]; !ok {
+					s[f.Config.flowIDKey] = f.ID
 				}
-				if _, ok := s[flow.Config.statusKey]; !ok {
-					s[flow.Config.statusKey] = "pending"
+				if _, ok := s[f.Config.statusKey]; !ok {
+					s[f.Config.statusKey] = "pending"
 				}
 				currentData = s
 				payload, err = json.Marshal(currentData)
@@ -318,19 +313,18 @@ func (flow *Flow) loop(ctx context.Context, task *Task) ([]any, error) {
 				}
 			}
 			var responseData map[string]interface{}
-			if f, ok := flow.loops[task.Type()]; ok {
-				for _, v := range f {
+			if ft, ok := f.loops[task.Type()]; ok {
+				for _, v := range ft {
 					t := NewTask(v, payload, FlowID(task.FlowID), Queue(v))
-					res := flow.ProcessTask(ctx, t, flow.NodeHandler[v])
+					res := f.processTask(ctx, t, f.nodeHandler[v])
 					if res.Error != nil {
-						if flow.Config.ErrorHandler != nil {
-							flow.Config.ErrorHandler.HandleError(ctx, task, res.Error)
+						if f.Config.ErrorHandler != nil {
+							f.Config.ErrorHandler.HandleError(ctx, task, res.Error)
 						}
-
 						return res.Error
 					} else {
-						if flow.Config.CompleteHandler != nil {
-							flow.Config.CompleteHandler.HandleComplete(ctx, task)
+						if f.Config.CompleteHandler != nil {
+							f.Config.CompleteHandler.HandleComplete(ctx, task)
 						}
 					}
 					err = json.Unmarshal(res.Data, &responseData)
@@ -369,25 +363,25 @@ func (flow *Flow) loop(ctx context.Context, task *Task) ([]any, error) {
 	return results, nil
 }
 
-func (flow *Flow) ProcessTask(ctx context.Context, task *Task, handler ...Handler) Result {
+func (f *Flow) processTask(ctx context.Context, task *Task, handler ...Handler) Result {
 	var h Handler
-	if len(handler) > 0 {
+	if len(handler) > 0 && handler[0] != nil {
 		h = handler[0]
-	} else if flow.FirstNode != "" {
-		h = flow.NodeHandler[flow.FirstNode]
+	} else if f.FirstNode != "" {
+		h = f.nodeHandler[f.FirstNode]
 	}
 	if h == nil {
 		return Result{Error: errors.New("Handler not found")}
 	}
 	result := h.ProcessTask(ctx, task)
 	if result.Error != nil {
-		if flow.Config.ErrorHandler != nil {
-			flow.Config.ErrorHandler.HandleError(ctx, task, result.Error)
+		if f.Config.ErrorHandler != nil {
+			f.Config.ErrorHandler.HandleError(ctx, task, result.Error)
 		}
 		return result
 	} else {
-		if flow.Config.CompleteHandler != nil {
-			flow.Config.CompleteHandler.HandleComplete(ctx, task)
+		if f.Config.CompleteHandler != nil {
+			f.Config.CompleteHandler.HandleComplete(ctx, task)
 		}
 	}
 	if h.GetType() == "loop" {
@@ -397,8 +391,8 @@ func (flow *Flow) ProcessTask(ctx context.Context, task *Task, handler ...Handle
 		} else {
 			c = ctx
 		}
-		newTask := NewTask(task.Type(), result.Data, FlowID(flow.ID))
-		results, err := flow.loop(c, newTask)
+		newTask := NewTask(task.Type(), result.Data, FlowID(f.ID))
+		results, err := f.loop(c, newTask)
 		if err != nil {
 			result.Error = err
 			return result
@@ -417,42 +411,42 @@ func (flow *Flow) ProcessTask(ctx context.Context, task *Task, handler ...Handle
 		} else {
 			ct = ctx
 		}
-		if f, ok := flow.branches[task.Type()]; ok && result.Status != "" {
-			if c, o := f[result.Status]; o {
+		if ft, ok := f.branches[task.Type()]; ok && result.Status != "" {
+			if c, o := ft[result.Status]; o {
 				t := NewTask(c, result.Data, FlowID(task.FlowID))
-				res := flow.ProcessTask(ct, t, flow.NodeHandler[c])
+				res := f.processTask(ct, t, f.nodeHandler[c])
 				if res.Error != nil {
-					if flow.Config.ErrorHandler != nil {
-						flow.Config.ErrorHandler.HandleError(ct, task, res.Error)
+					if f.Config.ErrorHandler != nil {
+						f.Config.ErrorHandler.HandleError(ct, task, res.Error)
 					}
 					return res
 				} else {
-					if flow.Config.CompleteHandler != nil {
-						flow.Config.CompleteHandler.HandleComplete(ct, task)
+					if f.Config.CompleteHandler != nil {
+						f.Config.CompleteHandler.HandleComplete(ct, task)
 					}
 				}
 				result = res
 			}
 		}
 	}
-	if f, ok := flow.edges[task.Type()]; ok {
+	if ft, ok := f.edges[task.Type()]; ok {
 		var ct context.Context
 		if result.Ctx != nil {
 			ct = result.Ctx
 		} else {
 			ct = ctx
 		}
-		for _, v := range f {
+		for _, v := range ft {
 			t := NewTask(v, result.Data, FlowID(task.FlowID))
-			res := flow.ProcessTask(ct, t, flow.NodeHandler[v])
+			res := f.processTask(ct, t, f.nodeHandler[v])
 			if res.Error != nil {
-				if flow.Config.ErrorHandler != nil {
-					flow.Config.ErrorHandler.HandleError(ct, task, res.Error)
+				if f.Config.ErrorHandler != nil {
+					f.Config.ErrorHandler.HandleError(ct, task, res.Error)
 				}
 				return res
 			} else {
-				if flow.Config.CompleteHandler != nil {
-					flow.Config.CompleteHandler.HandleComplete(ct, task)
+				if f.Config.CompleteHandler != nil {
+					f.Config.CompleteHandler.HandleComplete(ct, task)
 				}
 			}
 			result = res
@@ -461,7 +455,19 @@ func (flow *Flow) ProcessTask(ctx context.Context, task *Task, handler ...Handle
 	return result
 }
 
-func (flow *Flow) edgeMiddleware(h Handler) Handler {
+func (f *Flow) ProcessTask(ctx context.Context, task *Task) Result {
+	return f.processTask(ctx, task)
+}
+
+func (f *Flow) GetType() string {
+	return "flow"
+}
+
+func (f *Flow) GetKey() string {
+	return f.Config.FlowPrefix
+}
+
+func (f *Flow) edgeMiddleware(h Handler) Handler {
 	return HandlerFunc(func(ctx context.Context, task *Task) Result {
 		result := h.ProcessTask(ctx, task)
 		if result.Error != nil {
@@ -481,14 +487,14 @@ func (flow *Flow) edgeMiddleware(h Handler) Handler {
 				switch s := single.(type) {
 				case map[string]any:
 					id := xid.New().String()
-					if _, ok := s[flow.Config.idKey]; !ok {
-						s[flow.Config.idKey] = id
+					if _, ok := s[f.Config.idKey]; !ok {
+						s[f.Config.idKey] = id
 					}
-					if _, ok := s[flow.Config.flowIDKey]; !ok {
-						s[flow.Config.flowIDKey] = task.FlowID
+					if _, ok := s[f.Config.flowIDKey]; !ok {
+						s[f.Config.flowIDKey] = task.FlowID
 					}
-					if _, ok := s[flow.Config.statusKey]; !ok {
-						s[flow.Config.statusKey] = "pending"
+					if _, ok := s[f.Config.statusKey]; !ok {
+						s[f.Config.statusKey] = "pending"
 					}
 					currentData = s
 					payload, err = json.Marshal(currentData)
@@ -509,9 +515,9 @@ func (flow *Flow) edgeMiddleware(h Handler) Handler {
 						return result
 					}
 				}
-				if f, ok := flow.loops[task.Type()]; ok {
-					for _, v := range f {
-						flow.Enqueue(ctx, v, task.ResultWriter().Broker(), task.FlowID, payload, &result)
+				if ft, ok := f.loops[task.Type()]; ok {
+					for _, v := range ft {
+						f.Enqueue(ctx, v, task.ResultWriter().Broker(), task.FlowID, payload, &result)
 						if result.Error != nil {
 							return result
 						}
@@ -520,18 +526,18 @@ func (flow *Flow) edgeMiddleware(h Handler) Handler {
 			}
 		}
 		if h.GetType() == "condition" {
-			if f, ok := flow.branches[task.Type()]; ok && result.Status != "" {
-				if c, o := f[result.Status]; o {
-					flow.Enqueue(ctx, c, task.ResultWriter().Broker(), task.FlowID, result.Data, &result)
+			if ft, ok := f.branches[task.Type()]; ok && result.Status != "" {
+				if c, o := ft[result.Status]; o {
+					f.Enqueue(ctx, c, task.ResultWriter().Broker(), task.FlowID, result.Data, &result)
 					if result.Error != nil {
 						return result
 					}
 				}
 			}
 		}
-		if f, ok := flow.edges[task.Type()]; ok {
-			for _, v := range f {
-				flow.Enqueue(ctx, v, task.ResultWriter().Broker(), task.FlowID, result.Data, &result)
+		if ft, ok := f.edges[task.Type()]; ok {
+			for _, v := range ft {
+				f.Enqueue(ctx, v, task.ResultWriter().Broker(), task.FlowID, result.Data, &result)
 				if result.Error != nil {
 					return result
 				}
@@ -541,64 +547,69 @@ func (flow *Flow) edgeMiddleware(h Handler) Handler {
 	})
 }
 
-func (flow *Flow) AddHandler(node string, handler Handler) {
-	flow.mu.Lock()
-	defer flow.mu.Unlock()
-	flow.NodeHandler[node] = handler
-	flow.Nodes = append(flow.Nodes, node)
+func (f *Flow) AddHandler(node string, handler Handler) *Flow {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.nodeHandler[node] = handler
+	f.Nodes = append(f.Nodes, node)
+	return f
 }
 
-func (flow *Flow) AddEdge(in, out string) {
+func (f *Flow) AddEdge(in, out string) *Flow {
 	edge := []string{in, out}
-	flow.Edges = append(flow.Edges, edge)
+	f.Edges = append(f.Edges, edge)
+	return f
 }
 
-func (flow *Flow) AddBranch(vertex string, conditions map[string]string) {
+func (f *Flow) AddBranch(vertex string, conditions map[string]string) *Flow {
 	branch := Branch{
 		Key:              vertex,
 		ConditionalNodes: conditions,
 	}
-	flow.Branches = append(flow.Branches, branch)
+	f.Branches = append(f.Branches, branch)
+	return f
 }
 
-func (flow *Flow) AddLoop(in string, out ...string) {
+func (f *Flow) AddLoop(in string, out ...string) *Flow {
 	loop := []string{in}
 	loop = append(loop, out...)
-	flow.Loops = append(flow.Loops, loop)
+	f.Loops = append(f.Loops, loop)
+	return f
 }
 
-func (flow *Flow) Prepare() {
-	for _, edge := range flow.Edges {
-		flow.edges[edge[0]] = append(flow.edges[edge[0]], edge[1])
+func (f *Flow) Prepare() *Flow {
+	for _, edge := range f.Edges {
+		f.edges[edge[0]] = append(f.edges[edge[0]], edge[1])
 	}
-	for _, loop := range flow.Loops {
-		flow.loops[loop[0]] = append(flow.loops[loop[0]], loop[1:]...)
+	for _, loop := range f.Loops {
+		f.loops[loop[0]] = append(f.loops[loop[0]], loop[1:]...)
 	}
-	for _, branch := range flow.Branches {
-		flow.branches[branch.Key] = branch.ConditionalNodes
+	for _, branch := range f.Branches {
+		f.branches[branch.Key] = branch.ConditionalNodes
 	}
-	if flow.FirstNode == "" {
-		for node, handler := range flow.NodeHandler {
+	if f.FirstNode == "" {
+		for node, handler := range f.nodeHandler {
 			if handler.GetType() == "input" {
-				flow.FirstNode = node
+				f.FirstNode = node
 			}
 			if handler.GetType() == "output" {
-				flow.LastNode = node
+				f.LastNode = node
 			}
 		}
 	}
+	return f
 }
 
-func (flow *Flow) SetupServer() error {
-	if flow.Config.NoService {
+func (f *Flow) SetupServer() error {
+	if f.Config.NoService {
 		return nil
 	}
-	flow.Prepare()
+	f.Prepare()
 	mux := NewServeMux()
-	for node, handler := range flow.NodeHandler {
-		if flow.Mode == Async {
-			flow.server.AddQueue(node, 1)
-			flow.RDB.Client().SAdd(context.Background(), base.AllQueues, node)
+	for node, handler := range f.nodeHandler {
+		if f.Mode == Async {
+			f.server.AddQueue(node, 1)
+			f.rdb.Client().SAdd(context.Background(), base.AllQueues, node)
 			result := mux.Handle(node, handler)
 			if result.Error != nil {
 				return result.Error
@@ -606,89 +617,89 @@ func (flow *Flow) SetupServer() error {
 		}
 	}
 
-	key := "cron:1:" + flow.ID
-	if flow.Config.CronReportHandler == nil {
-		mux.Handle(key, &CronReportHandler{flow: flow})
+	key := "cron:1:" + f.ID
+	if f.Config.CronReportHandler == nil {
+		mux.Handle(key, &CronReportHandler{flow: f})
 	} else {
-		mux.Handle(key, flow.Config.CronReportHandler)
+		mux.Handle(key, f.Config.CronReportHandler)
 	}
-	if flow.Mode == Async {
-		flow.server.AddQueue(key, 2)
+	if f.Mode == Async {
+		f.server.AddQueue(key, 2)
 
-		mux.Use(flow.edgeMiddleware)
-		flow.handler = mux
-		flow.server.AddHandler(mux)
-		register, err := flow.scheduler.Register("@every 10s", NewTask(key, nil, FlowID(flow.ID), Queue(key)), Queue(key))
+		mux.Use(f.edgeMiddleware)
+		f.handler = mux
+		f.server.AddHandler(mux)
+		register, err := f.scheduler.Register("@every 10s", NewTask(key, nil, FlowID(f.ID), Queue(key)), Queue(key))
 		if err != nil {
 			return err
 		}
-		flow.mu.Lock()
-		flow.CronEntries[register] = key
-		flow.mu.Unlock()
+		f.mu.Lock()
+		f.CronEntries[register] = key
+		f.mu.Unlock()
 	}
 	return nil
 }
 
-func (flow *Flow) Use(handler func(h Handler) Handler) {
-	if flow.handler != nil {
-		flow.handler.Use(handler)
+func (f *Flow) Use(handler func(h Handler) Handler) {
+	if f.handler != nil {
+		f.handler.Use(handler)
 	}
 }
 
-func (flow *Flow) Run() error {
-	if flow.server == nil {
+func (f *Flow) Run() error {
+	if f.server == nil {
 		return nil
 	}
-	return flow.server.Run()
+	return f.server.Run()
 }
 
-func (flow *Flow) Start() error {
-	if flow.server == nil {
+func (f *Flow) Start() error {
+	if f.server == nil {
 		return nil
 	}
-	if flow.scheduler.state.value != srvStateActive {
-		flow.scheduler.Start()
+	if f.scheduler.state.value != srvStateActive {
+		f.scheduler.Start()
 	}
 
-	if flow.server.state.value != srvStateActive {
-		return flow.server.Start()
+	if f.server.state.value != srvStateActive {
+		return f.server.Start()
 	}
 	return nil
 }
 
-func (flow *Flow) GetStatus() string {
-	if flow.server == nil {
-		flow.Status = "new"
-		return flow.Status
+func (f *Flow) GetStatus() string {
+	if f.server == nil {
+		f.Status = "new"
+		return f.Status
 	}
-	switch flow.server.state.value {
+	switch f.server.state.value {
 	case srvStateActive:
-		flow.Status = "active"
+		f.Status = "active"
 		break
 	case srvStateStopped:
-		flow.Status = "stopped"
+		f.Status = "stopped"
 		break
 	case srvStateClosed:
-		flow.Status = "closed"
+		f.Status = "closed"
 		break
 	default:
-		flow.Status = "new"
+		f.Status = "new"
 		break
 	}
-	return flow.Status
+	return f.Status
 }
 
-func (flow *Flow) Shutdown() {
-	if flow.server == nil {
+func (f *Flow) Shutdown() {
+	if f.server == nil {
 		return
 	}
-	flow.scheduler.Shutdown()
-	flow.server.Shutdown()
+	f.scheduler.Shutdown()
+	f.server.Shutdown()
 }
 
-func (flow *Flow) Send(data []byte) Result {
-	if flow.Mode == Async {
-		res, err := flow.SendAsync(data)
+func (f *Flow) Send(data []byte) Result {
+	if f.Mode == Async {
+		res, err := f.SendAsync(data)
 		if err != nil {
 			return Result{Error: err}
 		}
@@ -698,12 +709,12 @@ func (flow *Flow) Send(data []byte) Result {
 		}
 		return result
 	}
-	task := NewTask(flow.FirstNode, data, FlowID(flow.ID))
-	return flow.ProcessTask(context.Background(), task, flow.NodeHandler[flow.FirstNode])
+	task := NewTask(f.FirstNode, data, FlowID(f.ID))
+	return f.processTask(context.Background(), task, f.nodeHandler[f.FirstNode])
 }
 
-func (flow *Flow) SendAsync(data []byte) (*TaskInfo, error) {
-	return SendAsync(flow.RedisAddress, flow.ID, flow.FirstNode, data)
+func (f *Flow) SendAsync(data []byte) (*TaskInfo, error) {
+	return SendAsync(f.RedisAddress, f.ID, f.FirstNode, data)
 }
 
 func SendAsync(redisAddress, flowID string, queue string, data []byte) (*TaskInfo, error) {

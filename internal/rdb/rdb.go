@@ -1053,7 +1053,7 @@ func (r *RDB) forwardAll(qname string) (err error) {
 
 // ListGroups returns a list of all known groups in the given queue.
 func (r *RDB) ListGroups(qname string) ([]string, error) {
-	var op errors.Op = "RDB.ListGroups"
+	var op errors.Op = "rdb.ListGroups"
 	groups, err := r.client.SMembers(context.Background(), base.AllGroups(qname)).Result()
 	if err != nil {
 		return nil, errors.E(op, errors.Unknown, &errors.RedisCommandError{Command: "smembers", Err: err})
@@ -1156,7 +1156,7 @@ const aggregationTimeout = 2 * time.Minute
 // Note: It assumes that this function is called at frequency less than or equal to the gracePeriod. In other words,
 // the function only checks the most recently added task aganist the given gracePeriod.
 func (r *RDB) AggregationCheck(qname, gname string, t time.Time, gracePeriod, maxDelay time.Duration, maxSize int) (string, error) {
-	var op errors.Op = "RDB.AggregationCheck"
+	var op errors.Op = "rdb.AggregationCheck"
 	aggregationSetID := xid.New().String()
 	expireTime := r.clock.Now().Add(aggregationTimeout)
 	keys := []string{
@@ -1209,7 +1209,7 @@ return msgs
 // ReadAggregationSet retrieves members of an aggregation set and returns a list of tasks in the set and
 // the deadline for aggregating those tasks.
 func (r *RDB) ReadAggregationSet(qname, gname, setID string) ([]*base.TaskMessage, time.Time, error) {
-	var op errors.Op = "RDB.ReadAggregationSet"
+	var op errors.Op = "rdb.ReadAggregationSet"
 	ctx := context.Background()
 	aggSetKey := base.AggregationSetKey(qname, gname, setID)
 	res, err := readAggregationSetCmd.Run(ctx, r.client,
@@ -1259,7 +1259,7 @@ return redis.status_reply("OK")
 
 // DeleteAggregationSet deletes the aggregation set and its members identified by the parameters.
 func (r *RDB) DeleteAggregationSet(ctx context.Context, qname, gname, setID string) error {
-	var op errors.Op = "RDB.DeleteAggregationSet"
+	var op errors.Op = "rdb.DeleteAggregationSet"
 	keys := []string{
 		base.AggregationSetKey(qname, gname, setID),
 		base.AllAggregationSets(qname),
@@ -1288,7 +1288,7 @@ return redis.status_reply("OK")
 // ReclaimStateAggregationSets checks for any stale aggregation sets in the given queue, and
 // reclaim tasks in the stale aggregation set by putting them back in the group.
 func (r *RDB) ReclaimStaleAggregationSets(qname string) error {
-	var op errors.Op = "RDB.ReclaimStaleAggregationSets"
+	var op errors.Op = "rdb.ReclaimStaleAggregationSets"
 	return r.runScript(context.Background(), op, reclaimStateAggregationSetsCmd,
 		[]string{base.AllAggregationSets(qname)}, r.clock.Now().Unix())
 }
