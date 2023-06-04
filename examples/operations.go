@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	json "github.com/bytedance/sonic"
 
 	"github.com/oarkflow/asynq"
 )
@@ -29,6 +29,11 @@ type GetData struct {
 	Operation
 }
 
+func (e *GetData) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
+	fmt.Println("Getting Input", string(task.Payload()))
+	return asynq.Result{Data: task.Payload(), Ctx: ctx}
+}
+
 type Loop struct {
 	Operation
 }
@@ -45,12 +50,16 @@ type Condition struct {
 func (e *Condition) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
 	var data map[string]any
 	json.Unmarshal(task.Payload(), &data)
-	if data["email"].(string) == "abc.xyz@gmail.com" {
-		fmt.Println("Checking...", data, "Pass...")
-		return asynq.Result{Data: task.Payload(), Status: "pass", Ctx: ctx}
+	switch email := data["email"].(type) {
+	case string:
+		if email == "abc.xyz@gmail.com" {
+			fmt.Println("Checking...", data, "Pass...")
+			return asynq.Result{Data: task.Payload(), Status: "pass", Ctx: ctx}
+		}
+		fmt.Println("Checking...", data, "Fail...")
+		return asynq.Result{Data: task.Payload(), Status: "fail", Ctx: ctx}
 	}
-	fmt.Println("Checking...", data, "Fail...")
-	return asynq.Result{Data: task.Payload(), Status: "fail", Ctx: ctx}
+	return asynq.Result{Data: task.Payload(), Status: "", Ctx: ctx}
 }
 
 type PrepareEmail struct {
@@ -71,8 +80,20 @@ type EmailDelivery struct {
 }
 
 func (e *EmailDelivery) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
-	data, _, _ := task.AsMap()
+	var data map[string]any
+	json.Unmarshal(task.Payload(), &data)
 	fmt.Println("Sending Email...", data)
+	return asynq.Result{Data: task.Payload(), Ctx: ctx}
+}
+
+type SendSms struct {
+	Operation
+}
+
+func (e *SendSms) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
+	var data map[string]any
+	json.Unmarshal(task.Payload(), &data)
+	fmt.Println("Sending Sms...", data)
 	return asynq.Result{Data: task.Payload(), Ctx: ctx}
 }
 
@@ -81,7 +102,19 @@ type StoreData struct {
 }
 
 func (e *StoreData) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
-	data, _, _ := task.AsMap()
+	var data map[string]any
+	json.Unmarshal(task.Payload(), &data)
 	fmt.Println("Storing Data...", data)
+	return asynq.Result{Data: task.Payload(), Ctx: ctx}
+}
+
+type InAppNotification struct {
+	Operation
+}
+
+func (e *InAppNotification) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
+	var data map[string]any
+	json.Unmarshal(task.Payload(), &data)
+	fmt.Println("In App notification...", data)
 	return asynq.Result{Data: task.Payload(), Ctx: ctx}
 }

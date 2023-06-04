@@ -1,5 +1,6 @@
 package asynq
 
+/*
 import (
 	"context"
 	"errors"
@@ -734,3 +735,4 @@ func MergeMap(map1 map[string]any, map2 map[string]any) map[string]any {
 	}
 	return map1
 }
+*/
