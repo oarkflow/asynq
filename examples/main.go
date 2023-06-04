@@ -14,7 +14,48 @@ func main() {
 	send(asynq.Sync)
 	// send(asynq.Async)
 }
+
+var d = map[string]interface{}{
+	"data_branch": map[string]string{
+		"cpt":   "send:sms",
+		"names": "notification",
+	},
+	"names": []string{"John", "Jane", "abc"},
+	"cpt": []map[string]any{
+		{
+			"code":              "001",
+			"encounter_uid":     "1",
+			"billing_provider":  "Test provider",
+			"resident_provider": "Test Resident Provider",
+		},
+		{
+			"code":              "OBS01",
+			"encounter_uid":     "1",
+			"billing_provider":  "Test provider",
+			"resident_provider": "Test Resident Provider",
+		},
+		{
+			"code":              "SU002",
+			"billing_provider":  "Test provider",
+			"resident_provider": "Test Resident Provider",
+		},
+	},
+}
+
 func send(mode asynq.Mode) {
+	f := asynq.NewFlow(asynq.Config{Mode: mode, RedisServer: redisAddrWorker})
+	f.FirstNode = "get:input"
+	f.
+		AddHandler("get:input", &GetData{Operation{Type: "input"}}).
+		AddHandler("send:sms", &SendSms{Operation{Type: "process"}}).
+		AddHandler("notification", &InAppNotification{Operation{Type: "process"}}).
+		AddHandler("data-branch", &DataBranchHandler{Operation{Type: "condition"}}).
+		AddEdge("get:input", "data-branch")
+	bt, _ := json.Marshal(d)
+	f.Send(bt)
+}
+
+func sendA(mode asynq.Mode) {
 	f := asynq.NewFlow(asynq.Config{Mode: mode, RedisServer: redisAddrWorker})
 	f.FirstNode = "get:input"
 	f.AddHandler("email:deliver", &EmailDelivery{Operation{Type: "process"}}).
@@ -25,6 +66,8 @@ func send(mode asynq.Mode) {
 		AddHandler("store:data", &StoreData{Operation{Type: "process"}}).
 		AddHandler("send:sms", &SendSms{Operation{Type: "process"}}).
 		AddHandler("notification", &InAppNotification{Operation{Type: "process"}}).
+		AddHandler("data-branch", &DataBranchHandler{Operation{Type: "condition"}}).
+		AddBranch("data-branch", map[string]string{}).
 		AddBranch("condition", map[string]string{
 			"pass": "email:deliver",
 			"fail": "store:data",

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/oarkflow/pkg/dipper"
+
 	"github.com/oarkflow/asynq"
 )
 
@@ -117,4 +119,40 @@ func (e *InAppNotification) ProcessTask(ctx context.Context, task *asynq.Task) a
 	json.Unmarshal(task.Payload(), &data)
 	fmt.Println("In App notification...", data)
 	return asynq.Result{Data: task.Payload(), Ctx: ctx}
+}
+
+type DataBranchHandler struct{ Operation }
+
+func (v *DataBranchHandler) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
+	var row map[string]any
+	var result asynq.Result
+	result.Data = task.Payload()
+	err := json.Unmarshal(result.Data, &row)
+	if err != nil {
+		result.Error = err
+		return result
+	}
+	fmt.Println("Data Branch...")
+	b := make(map[string]any)
+	switch branches := row["data_branch"].(type) {
+	case map[string]any:
+		for field, handler := range branches {
+			data := dipper.Get(row, field)
+			switch data := data.(type) {
+			case error, nil:
+				break
+			default:
+				b[handler.(string)] = data
+			}
+		}
+		break
+	}
+	br, err := json.Marshal(b)
+	if err != nil {
+		result.Error = err
+		return result
+	}
+	result.Status = "branches"
+	result.Data = br
+	return result
 }

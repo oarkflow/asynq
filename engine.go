@@ -348,6 +348,66 @@ func (f *Flow) processNode(ctx context.Context, task *Task, n *node) Result {
 				t := NewTask(cy, result.Data, FlowID(f.ID))
 				result = f.processNode(c, t, f.nodes[cy])
 			}
+		} else if result.Status == "branches" {
+			var r map[string]any
+			err := json.Unmarshal(result.Data, &r)
+			if err != nil {
+				result.Error = err
+				return result
+			}
+			g, ctx := errgroup.WithContext(c)
+			edgeResult := make(map[string][]byte)
+			rt := make(chan map[string]Result)
+			for handler, data := range r {
+				bt, _ := json.Marshal(data)
+				if nd, ok := f.nodes[handler]; ok {
+					edge := handler
+					nd := nd
+					g.Go(func() error {
+						newTask := NewTask(edge, bt, FlowID(n.flow.ID), Queue(edge))
+						r := f.processNode(c, newTask, nd)
+						if r.Error != nil {
+							panic(r.Error)
+							return r.Error
+						}
+						select {
+						case rt <- map[string]Result{edge: r}:
+						case <-ctx.Done():
+							return ctx.Err()
+						}
+						return nil
+					})
+
+				}
+			}
+
+			go func() {
+				g.Wait()
+				close(rt)
+			}()
+			for ch := range rt {
+				for edge, r := range ch {
+					edgeResult[edge+"_result"] = r.Data
+				}
+			}
+			data := make(map[string]any)
+			for key, val := range edgeResult {
+				var d any
+				err := json.Unmarshal(val, &d)
+				if err != nil {
+					panic(err)
+					result.Error = err
+					return result
+				}
+				data[key] = d
+			}
+
+			bytes, err := json.Marshal(data)
+			if err != nil {
+				result.Error = err
+				return result
+			}
+			result.Data = bytes
 		}
 	}
 	g, ctx := errgroup.WithContext(c)
@@ -645,6 +705,20 @@ func (f *Flow) edgeMiddleware(h Handler) Handler {
 			if ft, ok := f.Branches[task.Type()]; ok && result.Status != "" {
 				if c, o := ft[result.Status]; o {
 					f.Enqueue(ctx, c, task.ResultWriter().Broker(), task.FlowID, result.Data, &result)
+					if result.Error != nil {
+						return result
+					}
+				}
+			} else if result.Status == "branches" {
+				var r map[string]any
+				err := json.Unmarshal(result.Data, &r)
+				if err != nil {
+					result.Error = err
+					return result
+				}
+				for handler, data := range r {
+					bt, _ := json.Marshal(data)
+					f.Enqueue(ctx, handler, task.ResultWriter().Broker(), task.FlowID, bt, &result)
 					if result.Error != nil {
 						return result
 					}
