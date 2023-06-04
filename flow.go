@@ -1,9 +1,10 @@
 package asynq
 
+/*
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	json "github.com/bytedance/sonic"
 	"strings"
 	"sync"
 
@@ -734,3 +735,4 @@ func MergeMap(map1 map[string]any, map2 map[string]any) map[string]any {
 	}
 	return map1
 }
+*/
