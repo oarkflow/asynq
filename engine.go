@@ -232,6 +232,7 @@ type Flow struct {
 	firstNode *node
 	path      [][]string
 	mu        sync.RWMutex
+	prepared  bool
 }
 
 func NewFlow(config ...Config) *Flow {
@@ -490,6 +491,9 @@ func (f *Flow) GetKey() string {
 }
 
 func (f *Flow) prepareNodes() {
+	if f.prepared {
+		return
+	}
 	var src, dest []string
 	for _, edge := range f.Edges {
 		in := edge[0]
@@ -519,6 +523,7 @@ func (f *Flow) prepareNodes() {
 	if f.FirstNode != "" {
 		f.firstNode = f.nodes[f.FirstNode]
 	}
+	f.prepared = true
 }
 
 func (f *Flow) SetupServer() error {
