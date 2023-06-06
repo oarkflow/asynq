@@ -93,6 +93,7 @@ type SendSms struct {
 }
 
 func (e *SendSms) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
+	fmt.Println(ctx.Value("extra_params"))
 	var data map[string]any
 	json.Unmarshal(task.Payload(), &data)
 	fmt.Println("Sending Sms...", data)
@@ -115,6 +116,7 @@ type InAppNotification struct {
 }
 
 func (e *InAppNotification) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
+	fmt.Println(ctx.Value("extra_params"))
 	var data map[string]any
 	json.Unmarshal(task.Payload(), &data)
 	fmt.Println("In App notification...", data)
@@ -124,6 +126,7 @@ func (e *InAppNotification) ProcessTask(ctx context.Context, task *asynq.Task) a
 type DataBranchHandler struct{ Operation }
 
 func (v *DataBranchHandler) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
+	ctx = context.WithValue(ctx, "extra_params", map[string]any{"iphone": true})
 	var row map[string]any
 	var result asynq.Result
 	result.Data = task.Payload()
@@ -154,5 +157,6 @@ func (v *DataBranchHandler) ProcessTask(ctx context.Context, task *asynq.Task) a
 	}
 	result.Status = "branches"
 	result.Data = br
+	result.Ctx = ctx
 	return result
 }

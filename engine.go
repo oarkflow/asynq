@@ -32,9 +32,8 @@ type node struct {
 	flow    *Flow
 }
 
-func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
+func getExtraParams(ctx context.Context) map[string]any {
 	extraParams := map[string]any{}
-	g, ctx := errgroup.WithContext(ctx)
 	ep := ctx.Value("extra_params")
 	switch ep := ep.(type) {
 	case map[string]any:
@@ -42,6 +41,12 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 	case string:
 		json.Unmarshal([]byte(ep), &extraParams)
 	}
+	return extraParams
+}
+
+func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
+	g, ctx := errgroup.WithContext(ctx)
+	extraParams := getExtraParams(ctx)
 	result := make(chan interface{})
 	var rs, results []interface{}
 	err := json.Unmarshal(payload, &rs)
@@ -123,12 +128,18 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 }
 
 func (n *node) ProcessTask(ctx context.Context, task *Task) Result {
+	var c context.Context
 	result := n.handler.ProcessTask(ctx, task)
 	if result.Error != nil {
 		return result
 	}
+	if result.Ctx != nil {
+		c = result.Ctx
+	} else {
+		c = ctx
+	}
 	if n.flow.Mode == Sync && len(n.loops) > 0 {
-		arr, err := n.loop(ctx, result.Data)
+		arr, err := n.loop(c, result.Data)
 		if err != nil {
 			result.Error = err
 			return result
