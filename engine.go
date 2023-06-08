@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	json "github.com/bytedance/sonic"
-
 	"github.com/oarkflow/xid"
 	"golang.org/x/sync/errgroup"
 
@@ -403,6 +402,14 @@ func (f *Flow) processNode(ctx context.Context, task *Task, n *node) Result {
 				}
 			}
 			data := make(map[string]any)
+
+			// add extra params to result
+			extraParams := getExtraParams(ctx)
+			if len(extraParams) > 0 {
+				for k, v := range extraParams {
+					data[k] = v
+				}
+			}
 			for key, val := range edgeResult {
 				var d any
 				err := json.Unmarshal(val, &d)
@@ -467,6 +474,15 @@ func (f *Flow) processNode(ctx context.Context, task *Task, n *node) Result {
 	}
 	edgeResult[n.id+"_result"] = result.Data
 	data := make(map[string]any)
+
+	// add extra params to result
+	extraParams := getExtraParams(ctx)
+	if len(extraParams) > 0 {
+		for k, v := range extraParams {
+			data[k] = v
+		}
+	}
+
 	for key, val := range edgeResult {
 		d, _, err := asMap(val)
 		if err != nil {
