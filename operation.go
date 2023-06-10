@@ -52,7 +52,7 @@ func (e *Operation) GetKey() string {
 	return e.Key
 }
 
-func (e *Operation) ValidateFields(payload []byte) (map[string]any, error) {
+func (e *Operation) ValidateFields(ctx context.Context, payload []byte) (map[string]any, error) {
 	var keys []string
 	var data map[string]any
 	err := json.Unmarshal(payload, &data)
@@ -60,7 +60,7 @@ func (e *Operation) ValidateFields(payload []byte) (map[string]any, error) {
 		return nil, err
 	}
 	for k, v := range e.Payload.Mapping {
-		_, val := e.GetVal(v, data)
+		_, val := e.GetVal(ctx, v, data)
 		if val != nil {
 			keys = append(keys, k)
 		}
@@ -76,39 +76,49 @@ func (e *Operation) ValidateFields(payload []byte) (map[string]any, error) {
 	return data, nil
 }
 
-func (e *Operation) getVal(v string, data map[string]any) (key string, val any) {
+func (e *Operation) getVal(ctx context.Context, v string, data map[string]any) (key string, val any) {
+	header := ctx.Value("header")
+	if header != nil && strings.HasPrefix(v, "header.") {
+		v = strings.ReplaceAll(v, "header.", "")
+		vd := dipper.Get(data, v)
+		if dipper.Error(vd) == nil {
+			val = vd
+			key = v
+		}
+		return
+	}
 	if strings.Contains(v, "*_") {
 		fieldSuffix := strings.ReplaceAll(v, "*", "")
 		for k, vt := range data {
 			if strings.HasSuffix(k, fieldSuffix) {
 				val = vt
 				key = k
+				return
 			}
 		}
-	} else {
-		vd := dipper.Get(data, v)
-		if dipper.Error(vd) == nil {
-			val = vd
-			key = v
-		}
+	}
+	vd := dipper.Get(data, v)
+	if dipper.Error(vd) == nil {
+		val = vd
+		key = v
 	}
 	return
 }
 
-func (e *Operation) GetVal(v string, data map[string]any) (key string, val any) {
+func (e *Operation) GetVal(ctx context.Context, v string, data map[string]any) (key string, val any) {
 	vParts := strings.Split(v, ".")
 	switch vParts[0] {
 	case "body":
 		v := vParts[1]
-		key, val = e.getVal(v, data)
+		key, val = e.getVal(ctx, v, data)
 	case "param":
 		v := vParts[1]
 		param := data["request_param"].(map[string]any)
-		key, val = e.getVal(v, param)
+		key, val = e.getVal(ctx, v, param)
 	case "query":
 		v := vParts[1]
 		query := data["request_query"].(map[string]any)
-		key, val = e.getVal(v, query)
+		key, val = e.getVal(ctx, v, query)
 	case "eval":
 		v := vParts[1]
 		p, _ := evaluate.Parse(v, true)
@@ -120,7 +130,7 @@ func (e *Operation) GetVal(v string, data map[string]any) (key string, val any) 
 			return v, val
 		}
 	default:
-		key, val = e.getVal(v, data)
+		key, val = e.getVal(ctx, v, data)
 	}
 	return
 }
