@@ -646,7 +646,7 @@ func (f *Flow) Shutdown() {
 	f.server.Shutdown()
 }
 
-func (f *Flow) Send(data []byte) Result {
+func (f *Flow) Send(ctx context.Context, data []byte) Result {
 	if f.config.Mode == Async {
 		res, err := f.SendAsync(data)
 		if err != nil {
@@ -659,7 +659,7 @@ func (f *Flow) Send(data []byte) Result {
 		return result
 	}
 	task := NewTask(f.FirstNode, data, FlowID(f.ID))
-	return f.ProcessTask(context.Background(), task)
+	return f.ProcessTask(ctx, task)
 }
 
 func (f *Flow) SendAsync(data []byte) (*TaskInfo, error) {
