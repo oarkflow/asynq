@@ -342,9 +342,92 @@ func (f *Flow) AddBranch(id string, branch map[string]string) *Flow {
 	return f
 }
 
+func (f *Flow) processBranches(c context.Context, d []byte, n *node) Result {
+	var result Result
+	var r map[string]any
+	err := json.Unmarshal(d, &r)
+	if err != nil {
+		result.Error = err
+		f.Error = result.Error
+		return result
+	}
+	g, ctx := errgroup.WithContext(c)
+	edgeResult := make(map[string][]byte)
+	rt := make(chan any)
+	for handler, data := range r {
+		bt, _ := json.Marshal(data)
+		if nd, ok := f.nodes[handler]; ok {
+			edge := handler
+			nd := nd
+			g.Go(func() error {
+				newTask := NewTask(edge, bt, FlowID(n.flow.ID), Queue(edge))
+				r := f.processNode(c, newTask, nd)
+				if r.Error != nil {
+					rt <- r.Error
+					return r.Error
+				}
+				select {
+				case rt <- map[string]Result{edge: r}:
+				case <-ctx.Done():
+					rt <- ctx.Err()
+				}
+				return nil
+			})
+
+		}
+	}
+
+	go func() {
+		g.Wait()
+		close(rt)
+	}()
+	for ch := range rt {
+		switch ch := ch.(type) {
+		case error:
+			result.Error = err
+			f.Error = result.Error
+			return result
+		case map[string]Result:
+			for edge, r := range ch {
+				edgeResult[edge+"_result"] = r.Data
+			}
+		}
+	}
+	data := make(map[string]any)
+
+	// add extra params to result
+	extraParams := getExtraParams(ctx)
+	if len(extraParams) > 0 {
+		for k, v := range extraParams {
+			data[k] = v
+		}
+	}
+	for key, val := range edgeResult {
+		var d any
+		err := json.Unmarshal(val, &d)
+		if err != nil {
+			panic(err)
+			result.Error = err
+			f.Error = result.Error
+			return result
+		}
+		data[key] = d
+	}
+
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		result.Error = err
+		f.Error = result.Error
+		return result
+	}
+	result.Data = bytes
+	return result
+}
+
 func (f *Flow) processNode(ctx context.Context, task *Task, n *node) Result {
 	result := n.ProcessTask(ctx, task)
 	if result.Error != nil {
+		f.Error = result.Error
 		return result
 	}
 	var c context.Context
@@ -358,80 +441,20 @@ func (f *Flow) processNode(ctx context.Context, task *Task, n *node) Result {
 			if cy, o := ft[result.Status]; o {
 				t := NewTask(cy, result.Data, FlowID(f.ID))
 				result = f.processNode(c, t, f.nodes[cy])
+				f.Error = result.Error
+				return result
 			}
 		} else if result.Status == "branches" {
-			var r map[string]any
-			err := json.Unmarshal(result.Data, &r)
-			if err != nil {
-				result.Error = err
+			result = f.processBranches(c, result.Data, n)
+			if result.Error != nil {
+				f.Error = result.Error
 				return result
 			}
-			g, ctx := errgroup.WithContext(c)
-			edgeResult := make(map[string][]byte)
-			rt := make(chan map[string]Result)
-			for handler, data := range r {
-				bt, _ := json.Marshal(data)
-				if nd, ok := f.nodes[handler]; ok {
-					edge := handler
-					nd := nd
-					g.Go(func() error {
-						newTask := NewTask(edge, bt, FlowID(n.flow.ID), Queue(edge))
-						r := f.processNode(c, newTask, nd)
-						if r.Error != nil {
-							panic(r.Error)
-							return r.Error
-						}
-						select {
-						case rt <- map[string]Result{edge: r}:
-						case <-ctx.Done():
-							return ctx.Err()
-						}
-						return nil
-					})
-
-				}
-			}
-
-			go func() {
-				g.Wait()
-				close(rt)
-			}()
-			for ch := range rt {
-				for edge, r := range ch {
-					edgeResult[edge+"_result"] = r.Data
-				}
-			}
-			data := make(map[string]any)
-
-			// add extra params to result
-			extraParams := getExtraParams(ctx)
-			if len(extraParams) > 0 {
-				for k, v := range extraParams {
-					data[k] = v
-				}
-			}
-			for key, val := range edgeResult {
-				var d any
-				err := json.Unmarshal(val, &d)
-				if err != nil {
-					panic(err)
-					result.Error = err
-					return result
-				}
-				data[key] = d
-			}
-
-			bytes, err := json.Marshal(data)
-			if err != nil {
-				result.Error = err
-				return result
-			}
-			result.Data = bytes
 		}
 	}
 	g, ctx := errgroup.WithContext(c)
 	edgeResult := make(map[string][]byte)
-	rt := make(chan map[string]Result)
+	rt := make(chan any)
 	for _, edge := range n.edges {
 		if nd, ok := f.nodes[edge]; ok {
 			edge := edge
@@ -440,12 +463,12 @@ func (f *Flow) processNode(ctx context.Context, task *Task, n *node) Result {
 				newTask := NewTask(edge, result.Data, FlowID(n.flow.ID), Queue(edge))
 				r := f.processNode(c, newTask, nd)
 				if r.Error != nil {
-					return r.Error
+					rt <- r.Error
 				}
 				select {
 				case rt <- map[string]Result{edge: r}:
 				case <-ctx.Done():
-					return ctx.Err()
+					rt <- ctx.Err()
 				}
 				return nil
 			})
@@ -458,8 +481,15 @@ func (f *Flow) processNode(ctx context.Context, task *Task, n *node) Result {
 		close(rt)
 	}()
 	for ch := range rt {
-		for edge, r := range ch {
-			edgeResult[edge+"_result"] = r.Data
+		switch ch := ch.(type) {
+		case error:
+			result.Error = ch
+			f.Error = result.Error
+			return result
+		case map[string]Result:
+			for edge, r := range ch {
+				edgeResult[edge+"_result"] = r.Data
+			}
 		}
 	}
 	totalResults := len(edgeResult)
@@ -659,7 +689,11 @@ func (f *Flow) Send(ctx context.Context, data []byte) Result {
 		return result
 	}
 	task := NewTask(f.FirstNode, data, FlowID(f.ID))
-	return f.ProcessTask(ctx, task)
+	t := f.ProcessTask(ctx, task)
+	if t.Error != nil {
+		panic(t.Error)
+	}
+	return t
 }
 
 func (f *Flow) SendAsync(data []byte) (*TaskInfo, error) {
