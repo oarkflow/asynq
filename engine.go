@@ -93,6 +93,9 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 				t := NewTask(v, payload, FlowID(n.flow.ID), Queue(v))
 
 				res := n.flow.processNode(ctx, t, n.flow.nodes[v])
+				if res.Error != nil {
+					result <- res.Error
+				}
 				err = json.Unmarshal(res.Data, &responseData)
 				if err != nil {
 					result <- err
@@ -417,7 +420,6 @@ func (f *Flow) processBranches(c context.Context, d []byte, n *node) Result {
 		var d any
 		err := json.Unmarshal(val, &d)
 		if err != nil {
-			panic(err)
 			result.Error = err
 			f.Error = result.Error
 			return result
@@ -534,8 +536,10 @@ func (f *Flow) processNode(ctx context.Context, task *Task, n *node) Result {
 			if cy, o := ft[result.Status]; o {
 				t := NewTask(cy, result.Data, FlowID(f.ID))
 				result = f.processNode(c, t, f.nodes[cy])
-				f.Error = result.Error
-				return result
+				if result.Error != nil {
+					f.Error = result.Error
+					return result
+				}
 			}
 		} else if result.Status == "branches" {
 			result = f.processBranches(c, result.Data, n)
