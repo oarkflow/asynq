@@ -46,8 +46,8 @@ func getExtraParams(ctx context.Context) map[string]any {
 func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 	g, ctx := errgroup.WithContext(ctx)
 	extraParams := getExtraParams(ctx)
-	result := make(chan interface{})
-	var rs, results []interface{}
+	result := make(chan any)
+	var rs, results []any
 	err := json.Unmarshal(payload, &rs)
 	if err != nil {
 		return nil, err
@@ -77,12 +77,14 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 				currentData = s
 				payload, err = json.Marshal(currentData)
 				if err != nil {
+					result <- err
 					return err
 				}
 				break
 			default:
 				payload, err = json.Marshal(single)
 				if err != nil {
+					result <- err
 					return err
 				}
 			}
@@ -93,22 +95,25 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 				res := n.flow.processNode(ctx, t, n.flow.nodes[v])
 				err = json.Unmarshal(res.Data, &responseData)
 				if err != nil {
+					result <- err
 					return err
 				}
 				currentData = mergeMap(currentData, responseData)
 			}
 			payload, err = json.Marshal(currentData)
 			if err != nil {
+				result <- err
 				return err
 			}
 			err = json.Unmarshal(payload, &single)
 			if err != nil {
+				result <- err
 				return err
 			}
 			select {
 			case result <- single:
 			case <-ctx.Done():
-				return ctx.Err()
+				result <- ctx.Err()
 			}
 			return nil
 		})
@@ -118,10 +123,14 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 		close(result)
 	}()
 	for ch := range result {
-		results = append(results, ch)
-	}
-	if err := g.Wait(); err != nil {
-		return nil, err
+		switch ch := ch.(type) {
+		case error:
+			if ch != nil {
+				return results, ch
+			}
+		default:
+			results = append(results, ch)
+		}
 	}
 	return results, nil
 }
@@ -384,9 +393,11 @@ func (f *Flow) processBranches(c context.Context, d []byte, n *node) Result {
 	for ch := range rt {
 		switch ch := ch.(type) {
 		case error:
-			result.Error = err
-			f.Error = result.Error
-			return result
+			if ch != nil {
+				result.Error = ch
+				f.Error = result.Error
+				return result
+			}
 		case map[string]Result:
 			for edge, r := range ch {
 				edgeResult[edge+"_result"] = r.Data
@@ -424,34 +435,7 @@ func (f *Flow) processBranches(c context.Context, d []byte, n *node) Result {
 	return result
 }
 
-func (f *Flow) processNode(ctx context.Context, task *Task, n *node) Result {
-	result := n.ProcessTask(ctx, task)
-	if result.Error != nil {
-		f.Error = result.Error
-		return result
-	}
-	var c context.Context
-	if result.Ctx != nil {
-		c = result.Ctx
-	} else {
-		c = ctx
-	}
-	if n.GetType() == "condition" {
-		if ft, ok := f.Branches[n.id]; ok && result.Status != "" {
-			if cy, o := ft[result.Status]; o {
-				t := NewTask(cy, result.Data, FlowID(f.ID))
-				result = f.processNode(c, t, f.nodes[cy])
-				f.Error = result.Error
-				return result
-			}
-		} else if result.Status == "branches" {
-			result = f.processBranches(c, result.Data, n)
-			if result.Error != nil {
-				f.Error = result.Error
-				return result
-			}
-		}
-	}
+func (f *Flow) processEdges(c context.Context, result Result, n *node) Result {
 	g, ctx := errgroup.WithContext(c)
 	edgeResult := make(map[string][]byte)
 	rt := make(chan any)
@@ -483,9 +467,11 @@ func (f *Flow) processNode(ctx context.Context, task *Task, n *node) Result {
 	for ch := range rt {
 		switch ch := ch.(type) {
 		case error:
-			result.Error = ch
-			f.Error = result.Error
-			return result
+			if ch != nil {
+				result.Error = ch
+				f.Error = result.Error
+				return result
+			}
 		case map[string]Result:
 			for edge, r := range ch {
 				edgeResult[edge+"_result"] = r.Data
@@ -529,6 +515,37 @@ func (f *Flow) processNode(ctx context.Context, task *Task, n *node) Result {
 	}
 	result.Data = bytes
 	return result
+}
+
+func (f *Flow) processNode(ctx context.Context, task *Task, n *node) Result {
+	result := n.ProcessTask(ctx, task)
+	if result.Error != nil {
+		f.Error = result.Error
+		return result
+	}
+	var c context.Context
+	if result.Ctx != nil {
+		c = result.Ctx
+	} else {
+		c = ctx
+	}
+	if n.GetType() == "condition" {
+		if ft, ok := f.Branches[n.id]; ok && result.Status != "" {
+			if cy, o := ft[result.Status]; o {
+				t := NewTask(cy, result.Data, FlowID(f.ID))
+				result = f.processNode(c, t, f.nodes[cy])
+				f.Error = result.Error
+				return result
+			}
+		} else if result.Status == "branches" {
+			result = f.processBranches(c, result.Data, n)
+			if result.Error != nil {
+				f.Error = result.Error
+				return result
+			}
+		}
+	}
+	return f.processEdges(c, result, n)
 }
 
 func (f *Flow) ProcessTask(ctx context.Context, task *Task) Result {
@@ -688,12 +705,7 @@ func (f *Flow) Send(ctx context.Context, data []byte) Result {
 		}
 		return result
 	}
-	task := NewTask(f.FirstNode, data, FlowID(f.ID))
-	t := f.ProcessTask(ctx, task)
-	if t.Error != nil {
-		panic(t.Error)
-	}
-	return t
+	return f.ProcessTask(ctx, NewTask(f.FirstNode, data, FlowID(f.ID)))
 }
 
 func (f *Flow) SendAsync(data []byte) (*TaskInfo, error) {

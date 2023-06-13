@@ -13,8 +13,8 @@ import (
 const redisAddrWorker = "127.0.0.1:6379"
 
 func main() {
-	send(asynq.Sync)
-	// sendA(asynq.Sync)
+	// send(asynq.Sync)
+	sendA(asynq.Sync)
 }
 
 var d = map[string]interface{}{
