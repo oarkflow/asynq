@@ -2,7 +2,7 @@ package asynq
 
 import (
 	"context"
-	json "github.com/bytedance/sonic"
+	"encoding/json"
 	"github.com/oarkflow/errors"
 	"github.com/oarkflow/pkg/dipper"
 	"github.com/oarkflow/pkg/evaluate"

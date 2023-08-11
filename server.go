@@ -6,9 +6,9 @@ package asynq
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	json "github.com/bytedance/sonic"
 	"math"
 	"math/rand"
 	"runtime"

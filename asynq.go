@@ -7,8 +7,8 @@ package asynq
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
-	json "github.com/bytedance/sonic"
 	"net"
 	"net/url"
 	"strconv"

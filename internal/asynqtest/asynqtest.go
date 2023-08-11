@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	json "github.com/bytedance/sonic"
+	"encoding/json"
 
 	"github.com/oarkflow/xid"
 

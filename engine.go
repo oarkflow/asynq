@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	json "github.com/bytedance/sonic"
+	"encoding/json"
 	"github.com/oarkflow/xid"
 	"golang.org/x/sync/errgroup"
 
