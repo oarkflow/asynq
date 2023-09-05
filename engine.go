@@ -2,11 +2,11 @@ package asynq
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"sync"
 
-	"encoding/json"
 	"github.com/oarkflow/xid"
 	"golang.org/x/sync/errgroup"
 
@@ -612,7 +612,7 @@ func (f *Flow) SetupServer() error {
 	mux := NewServeMux()
 	for node, handler := range f.nodes {
 		f.server.AddQueue(node, 1)
-		f.rdb.Client().SAdd(context.Background(), base.AllQueues, node)
+		f.rdb.Client().SAdd(context.Background(), base.AllQueues(), node)
 		result := mux.Handle(node, handler)
 		if result.Error != nil {
 			return result.Error

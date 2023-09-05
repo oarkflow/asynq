@@ -7,12 +7,11 @@ package asynqtest
 
 import (
 	"context"
+	"encoding/json"
 	"math"
 	"sort"
 	"testing"
 	"time"
-
-	"encoding/json"
 
 	"github.com/oarkflow/xid"
 
@@ -202,49 +201,49 @@ func FlushDB(tb testing.TB, r redis.UniversalClient) {
 // SeedPendingQueue initializes the specified queue with the given messages.
 func SeedPendingQueue(tb testing.TB, r redis.UniversalClient, msgs []*base.TaskMessage, qname string) {
 	tb.Helper()
-	r.SAdd(context.Background(), base.AllQueues, qname)
+	r.SAdd(context.Background(), base.AllQueues(), qname)
 	seedRedisList(tb, r, base.PendingKey(qname), msgs, base.TaskStatePending)
 }
 
 // SeedActiveQueue initializes the active queue with the given messages.
 func SeedActiveQueue(tb testing.TB, r redis.UniversalClient, msgs []*base.TaskMessage, qname string) {
 	tb.Helper()
-	r.SAdd(context.Background(), base.AllQueues, qname)
+	r.SAdd(context.Background(), base.AllQueues(), qname)
 	seedRedisList(tb, r, base.ActiveKey(qname), msgs, base.TaskStateActive)
 }
 
 // SeedScheduledQueue initializes the scheduled queue with the given messages.
 func SeedScheduledQueue(tb testing.TB, r redis.UniversalClient, entries []base.Z, qname string) {
 	tb.Helper()
-	r.SAdd(context.Background(), base.AllQueues, qname)
+	r.SAdd(context.Background(), base.AllQueues(), qname)
 	seedRedisZSet(tb, r, base.ScheduledKey(qname), entries, base.TaskStateScheduled)
 }
 
 // SeedRetryQueue initializes the retry queue with the given messages.
 func SeedRetryQueue(tb testing.TB, r redis.UniversalClient, entries []base.Z, qname string) {
 	tb.Helper()
-	r.SAdd(context.Background(), base.AllQueues, qname)
+	r.SAdd(context.Background(), base.AllQueues(), qname)
 	seedRedisZSet(tb, r, base.RetryKey(qname), entries, base.TaskStateRetry)
 }
 
 // SeedArchivedQueue initializes the archived queue with the given messages.
 func SeedArchivedQueue(tb testing.TB, r redis.UniversalClient, entries []base.Z, qname string) {
 	tb.Helper()
-	r.SAdd(context.Background(), base.AllQueues, qname)
+	r.SAdd(context.Background(), base.AllQueues(), qname)
 	seedRedisZSet(tb, r, base.ArchivedKey(qname), entries, base.TaskStateArchived)
 }
 
 // SeedLease initializes the lease set with the given entries.
 func SeedLease(tb testing.TB, r redis.UniversalClient, entries []base.Z, qname string) {
 	tb.Helper()
-	r.SAdd(context.Background(), base.AllQueues, qname)
+	r.SAdd(context.Background(), base.AllQueues(), qname)
 	seedRedisZSet(tb, r, base.LeaseKey(qname), entries, base.TaskStateActive)
 }
 
 // SeedCompletedQueue initializes the completed set witht the given entries.
 func SeedCompletedQueue(tb testing.TB, r redis.UniversalClient, entries []base.Z, qname string) {
 	tb.Helper()
-	r.SAdd(context.Background(), base.AllQueues, qname)
+	r.SAdd(context.Background(), base.AllQueues(), qname)
 	seedRedisZSet(tb, r, base.CompletedKey(qname), entries, base.TaskStateCompleted)
 }
 

@@ -60,6 +60,7 @@ const (
 	TaskIDOpt
 	RetentionOpt
 	GroupOpt
+	SchedulerEntryIDOpt
 )
 
 // Option specifies the task processing behavior.
@@ -76,17 +77,18 @@ type Option interface {
 
 // Internal option representations.
 type (
-	retryOption     int
-	queueOption     string
-	flowIDOption    string
-	taskIDOption    string
-	timeoutOption   time.Duration
-	deadlineOption  time.Time
-	uniqueOption    time.Duration
-	processAtOption time.Time
-	processInOption time.Duration
-	retentionOption time.Duration
-	groupOption     string
+	retryOption            int
+	queueOption            string
+	flowIDOption           string
+	taskIDOption           string
+	timeoutOption          time.Duration
+	deadlineOption         time.Time
+	uniqueOption           time.Duration
+	processAtOption        time.Time
+	processInOption        time.Duration
+	retentionOption        time.Duration
+	groupOption            string
+	schedulerEntryIDOption string
 )
 
 // MaxRetry returns an option to specify the max number of times
@@ -226,6 +228,18 @@ func Group(name string) Option {
 func (name groupOption) String() string   { return fmt.Sprintf("Group(%q)", string(name)) }
 func (name groupOption) Type() OptionType { return GroupOpt }
 func (name groupOption) Value() any       { return string(name) }
+
+// SchedulerEntryID returns an option to specify the scheduler entry ID.
+// This option is only applicable to registered scheduled jobs.
+func SchedulerEntryID(id string) Option {
+	return schedulerEntryIDOption(id)
+}
+
+func (id schedulerEntryIDOption) String() string {
+	return fmt.Sprintf("SchedulerEntryID(%q)", string(id))
+}
+func (id schedulerEntryIDOption) Type() OptionType   { return SchedulerEntryIDOpt }
+func (id schedulerEntryIDOption) Value() interface{} { return string(id) }
 
 // ErrDuplicateTask indicates that the given task could not be enqueued since it's a duplicate of another task.
 //
@@ -456,7 +470,7 @@ func enqueue(broker base.Broker, ctx context.Context, msg *base.TaskMessage, uni
 
 func schedule(broker base.Broker, ctx context.Context, msg *base.TaskMessage, t time.Time, uniqueTTL time.Duration) error {
 	if uniqueTTL > 0 {
-		ttl := t.Add(uniqueTTL).Sub(time.Now())
+		ttl := time.Until(t.Add(uniqueTTL))
 		return broker.ScheduleUnique(ctx, msg, t, ttl)
 	}
 	return broker.Schedule(ctx, msg, t)

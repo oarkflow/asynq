@@ -14,7 +14,65 @@ const redisAddrWorker = "127.0.0.1:6379"
 
 func main() {
 	// send(asynq.Sync)
-	sendA(asynq.Async)
+	// sendA(asynq.Async)
+	// schedule()
+	go consumer1()
+	go consumer2()
+	sendTask()
+	time.Sleep(10 * time.Second)
+}
+
+func handler(ctx context.Context, task *asynq.Task) asynq.Result {
+	fmt.Println(task.Type(), string(task.Payload()))
+	return asynq.Result{}
+}
+
+func handler2(ctx context.Context, task *asynq.Task) asynq.Result {
+	fmt.Println("Handler 2", task.Type(), string(task.Payload()))
+	return asynq.Result{}
+}
+
+func sendTask() {
+	client := asynq.NewClient(asynq.RedisClientOpt{Addr: redisAddrWorker})
+	task := asynq.NewTask("queue", []byte("Hello World"))
+	_, err := client.Enqueue(task, asynq.Queue("queue"))
+	if err != nil {
+		panic(err)
+	}
+	task = asynq.NewTask("queue2", []byte("Hello World"))
+	_, err = client.Enqueue(task, asynq.Queue("queue2"))
+	if err != nil {
+		panic(err)
+	}
+	time.Sleep(10 * time.Minute)
+
+}
+
+func consumer1() {
+	rdb := asynq.NewRDB(asynq.Config{RedisServer: redisAddrWorker})
+	srv1 := asynq.NewServer(asynq.Config{RDB: rdb})
+	mux1 := asynq.NewServeMux()
+	srv1.AddHandler(mux1)
+	srv1.AddQueue("queue", 1)
+	srv1.AddQueueHandler("queue", handler)
+	if err := srv1.Start(); err != nil {
+		panic(err)
+	}
+
+}
+
+func consumer2() {
+	rdb := asynq.NewRDB(asynq.Config{RedisServer: redisAddrWorker})
+
+	srv1 := asynq.NewServer(asynq.Config{RDB: rdb})
+	mux1 := asynq.NewServeMux()
+	srv1.AddHandler(mux1)
+	srv1.AddQueue("queue2", 1)
+	srv1.AddQueueHandler("queue2", handler2)
+	if err := srv1.Start(); err != nil {
+		panic(err)
+	}
+
 }
 
 var d = map[string]interface{}{

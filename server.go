@@ -121,6 +121,14 @@ type Config struct {
 	// If this is defined, then it MUST return a non-nil context
 	BaseContext func() context.Context
 
+	// TaskCheckInterval specifies the interval between checks for new tasks to process when all queues are empty.
+	//
+	// Be careful not to set this value too low because it adds significant load to redis.
+	//
+	// If set to a zero or negative value, NewServer will overwrite the value with default value.
+	//
+	// By default, TaskCheckInterval is set to 1 seconds.
+	TaskCheckInterval time.Duration
 	// Function to calculate retry delay for a failed task.
 	//
 	// By default, it uses exponential backoff algorithm to calculate the delay.
@@ -253,10 +261,22 @@ type Config struct {
 	//
 	// If unset or nil, the group aggregation feature will be disabled on the server.
 	GroupAggregator GroupAggregator
-	idKey           string
-	statusKey       string
-	operationKey    string
-	flowIDKey       string
+
+	// JanitorInterval specifies the average interval of janitor checks for expired completed tasks.
+	//
+	// If unset or zero, default interval of 8 seconds is used.
+	JanitorInterval time.Duration
+
+	// JanitorBatchSize specifies the number of expired completed tasks to be deleted in one run.
+	//
+	// If unset or zero, default batch size of 100 is used.
+	// Make sure to not put a big number as the batch size to prevent a long-running script.
+	JanitorBatchSize int
+
+	idKey        string
+	statusKey    string
+	operationKey string
+	flowIDKey    string
 }
 
 // GroupAggregator aggregates a group of tasks into one before the tasks are passed to the Handler.
@@ -448,13 +468,18 @@ var defaultQueueConfig = map[string]int{
 }
 
 const (
-	defaultShutdownTimeout = 8 * time.Second
+	defaultTaskCheckInterval = 100 * time.Millisecond
+	defaultShutdownTimeout   = 8 * time.Second
 
 	defaultHealthCheckInterval = 15 * time.Second
 
 	defaultDelayedTaskCheckInterval = 5 * time.Second
 
 	defaultGroupGracePeriod = 1 * time.Minute
+
+	defaultJanitorInterval = 8 * time.Second
+
+	defaultJanitorBatchSize = 100
 )
 
 func NewRDB(cfg Config) *rdb.RDB {
@@ -484,6 +509,11 @@ func NewServer(cfg Config) *Server {
 	n := cfg.Concurrency
 	if n < 1 {
 		n = runtime.NumCPU()
+	}
+
+	taskCheckInterval := cfg.TaskCheckInterval
+	if taskCheckInterval <= 0 {
+		taskCheckInterval = defaultTaskCheckInterval
 	}
 	delayFunc := cfg.RetryDelayFunc
 	if delayFunc == nil {
@@ -542,7 +572,15 @@ func NewServer(cfg Config) *Server {
 	} else {
 		serverID = xid.New().String()
 	}
+	janitorInterval := cfg.JanitorInterval
+	if janitorInterval == 0 {
+		janitorInterval = defaultJanitorInterval
+	}
 
+	janitorBatchSize := cfg.JanitorBatchSize
+	if janitorBatchSize == 0 {
+		janitorBatchSize = defaultJanitorBatchSize
+	}
 	syncer := newSyncer(syncerParams{
 		logger:     logger,
 		requestsCh: syncCh,
@@ -576,23 +614,24 @@ func NewServer(cfg Config) *Server {
 		cancelations: cancels,
 	})
 	processor := newProcessor(processorParams{
-		logger:           logger,
-		broker:           rd,
-		retryDelayFunc:   delayFunc,
-		baseCtxFn:        baseCtxFn,
-		recoverPanicFunc: cfg.RecoverPanicFunc,
-		isFailureFunc:    isFailureFunc,
-		syncCh:           syncCh,
-		cancelations:     cancels,
-		concurrency:      n,
-		queues:           queues,
-		strictPriority:   cfg.StrictPriority,
-		errHandler:       cfg.ErrorHandler,
-		completeHandler:  cfg.CompleteHandler,
-		doneHandler:      cfg.DoneHandler,
-		shutdownTimeout:  shutdownTimeout,
-		starting:         starting,
-		finished:         finished,
+		logger:            logger,
+		broker:            rd,
+		taskCheckInterval: taskCheckInterval,
+		retryDelayFunc:    delayFunc,
+		baseCtxFn:         baseCtxFn,
+		recoverPanicFunc:  cfg.RecoverPanicFunc,
+		isFailureFunc:     isFailureFunc,
+		syncCh:            syncCh,
+		cancelations:      cancels,
+		concurrency:       n,
+		queues:            queues,
+		strictPriority:    cfg.StrictPriority,
+		errHandler:        cfg.ErrorHandler,
+		completeHandler:   cfg.CompleteHandler,
+		doneHandler:       cfg.DoneHandler,
+		shutdownTimeout:   shutdownTimeout,
+		starting:          starting,
+		finished:          finished,
 	})
 	recoverer := newRecoverer(recovererParams{
 		logger:         logger,
@@ -609,10 +648,11 @@ func NewServer(cfg Config) *Server {
 		healthcheckFunc: cfg.HealthCheckFunc,
 	})
 	janitor := newJanitor(janitorParams{
-		logger:   logger,
-		broker:   rd,
-		queues:   qnames,
-		interval: 8 * time.Second,
+		logger:    logger,
+		broker:    rd,
+		queues:    qnames,
+		interval:  janitorInterval,
+		batchSize: janitorBatchSize,
 	})
 	aggregator := newAggregator(aggregatorParams{
 		logger:          logger,
@@ -824,6 +864,20 @@ func (srv *Server) AddHandler(handler *ServeMux) {
 
 func (srv *Server) AddQueueHandler(queue string, handler func(ctx context.Context, t *Task) Result) {
 	srv.handler.HandleFunc(queue, handler)
+}
+
+func (srv *Server) RemoveQueueHandler(queue string) {
+	srv.handler.Remove(queue)
+}
+
+func remove[T any](l []T, remove func(T) bool) []T {
+	out := make([]T, 0)
+	for _, element := range l {
+		if !remove(element) {
+			out = append(out, element)
+		}
+	}
+	return out
 }
 
 func (srv *Server) AddQueues(queues map[string]int) {

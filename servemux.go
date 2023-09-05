@@ -139,6 +139,17 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) Result {
 	return Result{}
 }
 
+func (mux *ServeMux) Remove(pattern string) {
+	mux.mu.Lock()
+	defer mux.mu.Unlock()
+	if entry, exist := mux.m[pattern]; exist {
+		delete(mux.m, pattern)
+		remove(mux.es, func(e muxEntry) bool {
+			return e.pattern == entry.pattern
+		})
+	}
+}
+
 func appendSorted(es []muxEntry, e muxEntry) []muxEntry {
 	n := len(es)
 	i := sort.Search(n, func(i int) bool {
@@ -170,9 +181,7 @@ func (mux *ServeMux) HandleFunc(pattern string, handler func(context.Context, *T
 func (mux *ServeMux) Use(mws ...MiddlewareFunc) {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
-	for _, fn := range mws {
-		mux.mws = append(mux.mws, fn)
-	}
+	mux.mws = append(mux.mws, mws...)
 }
 
 // NotFound returns an error indicating that the handler was not found for the given task.
@@ -183,5 +192,5 @@ func NotFound(ctx context.Context, task *Task) Result {
 	}
 }
 
-// NotFoundHandler returns a simple task handler that returns a “not found“ error.
+// NotFoundHandler returns a simple task handler that returns a "not found" error.
 func NotFoundHandler() Handler { return HandlerFunc(NotFound) }

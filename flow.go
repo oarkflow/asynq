@@ -610,7 +610,7 @@ func (f *Flow) SetupServer() error {
 	for node, handler := range f.nodeHandler {
 		if f.Mode == Async {
 			f.server.AddQueue(node, 1)
-			f.rdb.Client().SAdd(context.Background(), base.AllQueues, node)
+			f.rdb.Client().SAdd(context.Background(), base.AllQueues(), node)
 			result := mux.Handle(node, handler)
 			if result.Error != nil {
 				return result.Error

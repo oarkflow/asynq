@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/oarkflow/asynq/internal/base"
@@ -610,4 +611,13 @@ func (w *ResultWriter) Broker() base.Broker {
 
 func (w *ResultWriter) FlowID() string {
 	return w.flowID
+}
+
+var globalPrefixOnce sync.Once
+
+// SetGlobalPrefix sets the global prefix for all redis keys used by asynq.
+func SetGlobalPrefix(prefix string) {
+	globalPrefixOnce.Do(func() {
+		base.GlobalPrefix = prefix
+	})
 }
