@@ -38,17 +38,14 @@ import (
 // Note that the archive size is finite and once it reaches its max size,
 // the oldest tasks in the archive will be deleted.
 type Server struct {
-	ServerID    string
-	queues      map[string]int
-	handler     *ServeMux
-	concurrency int
-	logger      *log.Logger
-
-	broker base.Broker
-
+	ServerID       string
+	queues         map[string]int
+	handler        *ServeMux
+	concurrency    int
+	logger         *log.Logger
+	broker         base.Broker
 	state          *serverState
 	strictPriority bool
-
 	// wait group to wait for all goroutines to finish.
 	wg            sync.WaitGroup
 	forwarder     *forwarder
@@ -468,18 +465,13 @@ var defaultQueueConfig = map[string]int{
 }
 
 const (
-	defaultTaskCheckInterval = 100 * time.Millisecond
-	defaultShutdownTimeout   = 8 * time.Second
-
-	defaultHealthCheckInterval = 15 * time.Second
-
+	defaultTaskCheckInterval        = 100 * time.Millisecond
+	defaultShutdownTimeout          = 8 * time.Second
+	defaultHealthCheckInterval      = 15 * time.Second
 	defaultDelayedTaskCheckInterval = 5 * time.Second
-
-	defaultGroupGracePeriod = 1 * time.Minute
-
-	defaultJanitorInterval = 8 * time.Second
-
-	defaultJanitorBatchSize = 100
+	defaultGroupGracePeriod         = 1 * time.Minute
+	defaultJanitorInterval          = 8 * time.Second
+	defaultJanitorBatchSize         = 100
 )
 
 func NewRDB(cfg Config) *rdb.RDB {
