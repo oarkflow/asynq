@@ -23,50 +23,52 @@ import (
 )
 
 type processor struct {
-	logger           *log.Logger
-	broker           base.Broker
-	clock            timeutil.Clock
-	handler          Handler
-	baseCtxFn        func() context.Context
-	queueConfig      map[string]int
-	orderedQueues    []string
-	retryDelayFunc   RetryDelayFunc
-	isFailureFunc    func(error) bool
-	errHandler       ErrorHandler
-	completeHandler  CompleteHandler
-	doneHandler      DoneHandler
-	recoverPanicFunc RecoverPanicFunc
-	shutdownTimeout  time.Duration
-	syncRequestCh    chan<- *syncRequest
-	errLogLimiter    *rate.Limiter
-	sema             chan struct{}
-	done             chan struct{}
-	once             sync.Once
-	quit             chan struct{}
-	abort            chan struct{}
-	cancelations     *base.Cancelations
-	starting         chan<- *workerInfo
-	finished         chan<- *base.TaskMessage
+	logger            *log.Logger
+	broker            base.Broker
+	clock             timeutil.Clock
+	handler           Handler
+	baseCtxFn         func() context.Context
+	queueConfig       map[string]int
+	orderedQueues     []string
+	taskCheckInterval time.Duration
+	retryDelayFunc    RetryDelayFunc
+	isFailureFunc     func(error) bool
+	errHandler        ErrorHandler
+	completeHandler   CompleteHandler
+	doneHandler       DoneHandler
+	recoverPanicFunc  RecoverPanicFunc
+	shutdownTimeout   time.Duration
+	syncRequestCh     chan<- *syncRequest
+	errLogLimiter     *rate.Limiter
+	sema              chan struct{}
+	done              chan struct{}
+	once              sync.Once
+	quit              chan struct{}
+	abort             chan struct{}
+	cancelations      *base.Cancelations
+	starting          chan<- *workerInfo
+	finished          chan<- *base.TaskMessage
 }
 
 type processorParams struct {
-	logger           *log.Logger
-	broker           base.Broker
-	baseCtxFn        func() context.Context
-	retryDelayFunc   RetryDelayFunc
-	recoverPanicFunc RecoverPanicFunc
-	isFailureFunc    func(error) bool
-	syncCh           chan<- *syncRequest
-	cancelations     *base.Cancelations
-	concurrency      int
-	queues           map[string]int
-	strictPriority   bool
-	errHandler       ErrorHandler
-	completeHandler  CompleteHandler
-	doneHandler      DoneHandler
-	shutdownTimeout  time.Duration
-	starting         chan<- *workerInfo
-	finished         chan<- *base.TaskMessage
+	logger            *log.Logger
+	broker            base.Broker
+	baseCtxFn         func() context.Context
+	retryDelayFunc    RetryDelayFunc
+	recoverPanicFunc  RecoverPanicFunc
+	taskCheckInterval time.Duration
+	isFailureFunc     func(error) bool
+	syncCh            chan<- *syncRequest
+	cancelations      *base.Cancelations
+	concurrency       int
+	queues            map[string]int
+	strictPriority    bool
+	errHandler        ErrorHandler
+	completeHandler   CompleteHandler
+	doneHandler       DoneHandler
+	shutdownTimeout   time.Duration
+	starting          chan<- *workerInfo
+	finished          chan<- *base.TaskMessage
 }
 
 func prepareQueues(config map[string]int, priority bool) (queues map[string]int, orderedQueues []string) {
@@ -82,25 +84,26 @@ func prepareQueues(config map[string]int, priority bool) (queues map[string]int,
 func newProcessor(params processorParams) *processor {
 	queues, orderedQueues := prepareQueues(params.queues, params.strictPriority)
 	return &processor{
-		logger:           params.logger,
-		broker:           params.broker,
-		baseCtxFn:        params.baseCtxFn,
-		clock:            timeutil.NewRealClock(),
-		queueConfig:      queues,
-		orderedQueues:    orderedQueues,
-		retryDelayFunc:   params.retryDelayFunc,
-		recoverPanicFunc: params.recoverPanicFunc,
-		isFailureFunc:    params.isFailureFunc,
-		syncRequestCh:    params.syncCh,
-		cancelations:     params.cancelations,
-		errLogLimiter:    rate.NewLimiter(rate.Every(3*time.Second), 1),
-		sema:             make(chan struct{}, params.concurrency),
-		done:             make(chan struct{}),
-		quit:             make(chan struct{}),
-		abort:            make(chan struct{}),
-		errHandler:       params.errHandler,
-		completeHandler:  params.completeHandler,
-		doneHandler:      params.doneHandler,
+		logger:            params.logger,
+		broker:            params.broker,
+		baseCtxFn:         params.baseCtxFn,
+		clock:             timeutil.NewRealClock(),
+		queueConfig:       queues,
+		orderedQueues:     orderedQueues,
+		taskCheckInterval: params.taskCheckInterval,
+		retryDelayFunc:    params.retryDelayFunc,
+		recoverPanicFunc:  params.recoverPanicFunc,
+		isFailureFunc:     params.isFailureFunc,
+		syncRequestCh:     params.syncCh,
+		cancelations:      params.cancelations,
+		errLogLimiter:     rate.NewLimiter(rate.Every(3*time.Second), 1),
+		sema:              make(chan struct{}, params.concurrency),
+		done:              make(chan struct{}),
+		quit:              make(chan struct{}),
+		abort:             make(chan struct{}),
+		errHandler:        params.errHandler,
+		completeHandler:   params.completeHandler,
+		doneHandler:       params.doneHandler,
 		handler: HandlerFunc(func(ctx context.Context, t *Task) Result {
 			return Result{
 				Data:  nil,
@@ -172,7 +175,7 @@ func (p *processor) exec() {
 			// Sleep to avoid slamming redis and let scheduler move tasks into queues.
 			// Note: We are not using blocking pop operation and polling queues instead.
 			// This adds significant load to redis.
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(p.taskCheckInterval)
 			<-p.sema // release token
 			return
 		case err != nil:

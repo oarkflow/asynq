@@ -111,7 +111,7 @@ func NewSchedulerFromRDB(rd *rdb.RDB, opts *SchedulerOpts) *Scheduler {
 		logger:          logger,
 		client:          NewClientFromRDB(rd),
 		rdb:             rd,
-		cron:            cron.New(cron.WithLocation(loc)),
+		cron:            cron.New(cron.WithLocation(loc), cron.WithSeconds()),
 		location:        loc,
 		done:            make(chan struct{}),
 		preEnqueueFunc:  opts.PreEnqueueFunc,
@@ -204,7 +204,7 @@ func (j *enqueueJob) Run() {
 // It returns an ID of the newly registered entry.
 func (s *Scheduler) Register(cronspec string, task *Task, opts ...Option) (entryID string, err error) {
 	job := &enqueueJob{
-		id:              xid.New().String(),
+		id:              generateEntryID(opts...),
 		cronspec:        cronspec,
 		task:            task,
 		opts:            opts,
@@ -224,6 +224,18 @@ func (s *Scheduler) Register(cronspec string, task *Task, opts ...Option) (entry
 	s.idmap[job.id] = cronID
 	s.mu.Unlock()
 	return job.id, nil
+}
+
+func generateEntryID(opts ...Option) (id string) {
+	if opts != nil {
+		for _, v := range opts {
+			if v.Type() == SchedulerEntryIDOpt {
+				id = v.Value().(string)
+				return
+			}
+		}
+	}
+	return xid.New().String()
 }
 
 // Unregister removes a registered entry by entry ID.
@@ -335,7 +347,7 @@ func (s *Scheduler) beat() {
 		}
 		entries = append(entries, e)
 	}
-	s.logger.Debugf("Writing entries %v", entries)
+
 	if err := s.rdb.WriteSchedulerEntries(s.id, entries, 5*time.Second); err != nil {
 		s.logger.Warnf("Scheduler could not write heartbeat data: %v", err)
 	}

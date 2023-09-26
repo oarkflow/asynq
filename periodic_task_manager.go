@@ -174,7 +174,7 @@ func (mgr *PeriodicTaskManager) add(configs []*PeriodicTaskConfig) {
 		entryID, err := mgr.s.Register(c.Cronspec, c.Task, c.Opts...)
 		if err != nil {
 			mgr.s.logger.Errorf("Failed to register periodic task: cronspec=%q task=%q",
-				c.Cronspec, c.Task.Type())
+				c.Cronspec, c.Task.Type(), err)
 			continue
 		}
 		mgr.m[c.hash()] = entryID
