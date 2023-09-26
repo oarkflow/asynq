@@ -7,12 +7,11 @@ package asynqtest
 
 import (
 	"context"
+	"encoding/json"
 	"math"
 	"sort"
 	"testing"
 	"time"
-
-	"encoding/json"
 
 	"github.com/oarkflow/xid"
 
