@@ -9,7 +9,10 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"runtime"
+	"runtime/debug"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -337,6 +340,12 @@ func (p *processor) handleFailedMessage(ctx context.Context, l *base.Lease, msg 
 	} else {
 		data = msg.Payload
 	}
+	if msg.Retry == 0 {
+		if errors.Is(err, SkipRetry) {
+			p.markAsDone(l, msg)
+			return
+		}
+	}
 	if p.errHandler != nil {
 		p.errHandler.HandleError(ctx, NewTask(msg.Type, data, FlowID(msg.FlowID), TaskID(msg.ID)), err)
 	}
@@ -354,7 +363,7 @@ func (p *processor) handleFailedMessage(ctx context.Context, l *base.Lease, msg 
 }
 
 func (p *processor) retry(l *base.Lease, msg *base.TaskMessage, e error, isFailure bool) {
-	if !l.IsValid() {
+	if !l.IsValid() || msg.Retry == 0 {
 		// If lease is not valid, do not write to redis; Let recoverer take care of it.
 		return
 	}
@@ -426,7 +435,7 @@ func (p *processor) queues() []string {
 // If the call returns without panic, it simply returns the value,
 // otherwise, it recovers from panic and returns an error.
 func (p *processor) perform(ctx context.Context, task *Task) (result Result) {
-	/*defer func() {
+	defer func() {
 		if x := recover(); x != nil {
 			errMsg := string(debug.Stack())
 			if p.recoverPanicFunc != nil {
@@ -447,7 +456,7 @@ func (p *processor) perform(ctx context.Context, task *Task) (result Result) {
 				result.Error = fmt.Errorf("panic: %v", x)
 			}
 		}
-	}()*/
+	}()
 	return p.handler.ProcessTask(ctx, task)
 }
 

@@ -21,6 +21,9 @@ import (
 // queues and tasks.
 type Inspector struct {
 	rdb *rdb.RDB
+	// When an Inspector has been created with an existing Redis connection, we do
+	// not want to close it.
+	sharedConnection bool
 }
 
 // NewInspector returns a new instance of Inspector.
@@ -29,8 +32,17 @@ func NewInspector(r RedisConnOpt) *Inspector {
 	if !ok {
 		panic(fmt.Sprintf("inspeq: unsupported RedisConnOpt type %T", r))
 	}
+	inspector := NewInspectorFromRedisClient(c)
+	inspector.sharedConnection = false
+	return inspector
+}
+
+// NewInspectorFromRedisClient returns a new instance of Inspector.
+// Warning: the redis client will not be closed by Asynq, you are responsible for closing.
+func NewInspectorFromRedisClient(c redis.UniversalClient) *Inspector {
 	return &Inspector{
-		rdb: rdb.NewRDB(c),
+		rdb:              rdb.NewRDB(c),
+		sharedConnection: true,
 	}
 }
 
@@ -43,6 +55,9 @@ func NewInspectorFromRDB(rd *rdb.RDB) *Inspector {
 
 // Close closes the connection with redis.
 func (i *Inspector) Close() error {
+	if i.sharedConnection {
+		return fmt.Errorf("redis connection is shared so the Inspector can't be closed through asynq")
+	}
 	return i.rdb.Close()
 }
 

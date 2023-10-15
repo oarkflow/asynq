@@ -55,6 +55,11 @@ func CancelChannel() string {
 	return fmt.Sprintf("%s:cancel", GlobalPrefix) // PubSub channel
 }
 
+type TaskProber interface {
+	Changed(map[string]interface{})
+	Result(state TaskState, raw *TaskInfo) (string, interface{})
+}
+
 // TaskState denotes the state of a task.
 type TaskState int
 
@@ -710,4 +715,6 @@ type Broker interface {
 	PublishCancelation(id string) error
 
 	WriteResult(qname, id string, data []byte) (n int, err error)
+	// SetTaskProber StateChanged watch state updates, with more customized detail
+	SetTaskProber(prober TaskProber)
 }

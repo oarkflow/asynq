@@ -85,3 +85,14 @@ func GetQueueName(ctx context.Context) (qname string, ok bool) {
 	}
 	return metadata.qname, true
 }
+
+// GetIsLastRetry extracts is_last_retry from a context, if any.
+//
+// Return value isLast indicates whether the task is being retried for the last time.
+func GetIsLastRetry(ctx context.Context) (isLast bool, ok bool) {
+	metadata, ok := ctx.Value(metadataCtxKey).(taskMetadata)
+	if !ok {
+		return false, false
+	}
+	return metadata.retryCount == metadata.maxRetry, true
+}

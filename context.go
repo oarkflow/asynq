@@ -40,3 +40,10 @@ func GetMaxRetry(ctx context.Context) (n int, ok bool) {
 func GetQueueName(ctx context.Context) (queue string, ok bool) {
 	return asynqcontext.GetQueueName(ctx)
 }
+
+// GetIsLastRetry extracts is_last_retry from a context, if any.
+//
+// Return value isLast indicates whether the task is being retried for the last time.
+func GetIsLastRetry(ctx context.Context) (isLast bool, ok bool) {
+	return asynqcontext.GetIsLastRetry(ctx)
+}

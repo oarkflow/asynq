@@ -38,14 +38,17 @@ import (
 // Note that the archive size is finite and once it reaches its max size,
 // the oldest tasks in the archive will be deleted.
 type Server struct {
-	ServerID       string
-	queues         map[string]int
-	handler        *ServeMux
-	concurrency    int
-	logger         *log.Logger
-	broker         base.Broker
-	state          *serverState
-	strictPriority bool
+	ServerID    string
+	queues      map[string]int
+	handler     *ServeMux
+	concurrency int
+	logger      *log.Logger
+	broker      base.Broker
+	// When a Server has been created with an existing Redis connection, we do
+	// not want to close it.
+	sharedConnection bool
+	state            *serverState
+	strictPriority   bool
 	// wait group to wait for all goroutines to finish.
 	wg            sync.WaitGroup
 	forwarder     *forwarder
@@ -259,6 +262,10 @@ type Config struct {
 	// If unset or nil, the group aggregation feature will be disabled on the server.
 	GroupAggregator GroupAggregator
 
+	// StateChanged called when a task state changed
+	//
+	TaskStateProber *TaskStateProber
+
 	// JanitorInterval specifies the average interval of janitor checks for expired completed tasks.
 	//
 	// If unset or zero, default interval of 8 seconds is used.
@@ -274,6 +281,51 @@ type Config struct {
 	statusKey    string
 	operationKey string
 	flowIDKey    string
+}
+
+// TaskStateProber tell there's a state changed happening
+type TaskStateProber struct {
+	Probers map[string]string // map[state-string]data-name
+	Handler func(map[string]interface{})
+}
+
+func (p TaskStateProber) Changed(out map[string]interface{}) {
+	if p.Handler != nil {
+		p.Handler(out)
+	}
+}
+
+func (p TaskStateProber) Result(state base.TaskState, raw *base.TaskInfo) (key string, data interface{}) {
+	defer func() {
+		if len(key) == 0 {
+			key = "task"
+		}
+		if data == nil {
+			data = *newTaskInfo(raw.Message, raw.State, raw.NextProcessAt, raw.Result)
+		}
+	}()
+
+	probers := p.Probers
+	if len(probers) == 0 {
+		probers = map[string]string{"*": "task"}
+	}
+	key, ok := probers["*"]
+	if !ok {
+		key, ok = probers[state.String()]
+	}
+	if !ok {
+		return
+	}
+
+	switch key {
+	case "next":
+		data = raw.NextProcessAt
+	case "result":
+		if len(raw.Result) > 0 {
+			data = raw.Result
+		}
+	}
+	return
 }
 
 // GroupAggregator aggregates a group of tasks into one before the tasks are passed to the Handler.
@@ -474,24 +526,37 @@ const (
 	defaultJanitorBatchSize         = 100
 )
 
-func NewRDB(cfg Config) *rdb.RDB {
+func NewRDB(cfg Config, cs ...redis.UniversalClient) *rdb.RDB {
 	if cfg.RDB != nil {
 		return cfg.RDB
 	}
+	return rdb.NewRDB(NewRClient(cfg, cs...))
+}
+
+func NewRClient(cfg Config, cs ...redis.UniversalClient) redis.UniversalClient {
 	if cfg.RedisClientOpt.Addr == "" {
 		cfg.RedisClientOpt = RedisClientOpt{Addr: "127.0.0.1:6379"}
 	}
-
+	if len(cs) > 0 {
+		return cs[0]
+	}
 	c, ok := cfg.RedisClientOpt.MakeRedisClient().(redis.UniversalClient)
 	if !ok {
 		panic(fmt.Sprintf("asynq: unsupported RedisConnOpt type %T", cfg.RedisClientOpt))
 	}
-	return rdb.NewRDB(c)
+	return c
 }
 
-// NewServer returns a new Server given a redis connection option
-// and server configuration.
 func NewServer(cfg Config) *Server {
+	c := NewRClient(cfg)
+	server := NewServerFromRedisClient(c, cfg)
+	server.sharedConnection = false
+	return server
+}
+
+// NewServerFromRedisClient returns a new Server given a redis connection option
+// and server configuration.
+func NewServerFromRedisClient(c redis.UniversalClient, cfg Config) *Server {
 	rd := NewRDB(cfg)
 
 	baseCtxFn := cfg.BaseContext
@@ -558,6 +623,12 @@ func NewServer(cfg Config) *Server {
 	syncCh := make(chan *syncRequest)
 	srvState := &serverState{value: srvStateNew}
 	cancels := base.NewCancelations()
+
+	taskStateProber := cfg.TaskStateProber
+	if taskStateProber != nil {
+		rd.SetTaskProber(*taskStateProber)
+	}
+
 	serverID := ""
 	if cfg.ServerID != "" {
 		serverID = cfg.ServerID
@@ -656,22 +727,23 @@ func NewServer(cfg Config) *Server {
 		groupAggregator: cfg.GroupAggregator,
 	})
 	return &Server{
-		ServerID:       serverID,
-		strictPriority: cfg.StrictPriority,
-		queues:         queues,
-		concurrency:    n,
-		logger:         logger,
-		broker:         rd,
-		state:          srvState,
-		forwarder:      forwarder,
-		processor:      processor,
-		syncer:         syncer,
-		heartbeater:    heartbeater,
-		subscriber:     subscriber,
-		recoverer:      recoverer,
-		healthchecker:  healthchecker,
-		janitor:        janitor,
-		aggregator:     aggregator,
+		ServerID:         serverID,
+		strictPriority:   cfg.StrictPriority,
+		queues:           queues,
+		sharedConnection: true,
+		concurrency:      n,
+		logger:           logger,
+		broker:           rd,
+		state:            srvState,
+		forwarder:        forwarder,
+		processor:        processor,
+		syncer:           syncer,
+		heartbeater:      heartbeater,
+		subscriber:       subscriber,
+		recoverer:        recoverer,
+		healthchecker:    healthchecker,
+		janitor:          janitor,
+		aggregator:       aggregator,
 	}
 }
 
@@ -825,8 +897,9 @@ func (srv *Server) Shutdown() {
 	srv.healthchecker.shutdown()
 	srv.heartbeater.shutdown()
 	srv.wg.Wait()
-
-	srv.broker.Close()
+	if !srv.sharedConnection {
+		srv.broker.Close()
+	}
 	srv.logger.Info("Exiting")
 }
 
@@ -941,4 +1014,9 @@ func (srv *Server) IsStopped() bool {
 
 func (srv *Server) IsClosed() bool {
 	return srv.state.value == srvStateClosed
+}
+
+// SetTaskStateProber StateChanged watch state updates, with more customized detail
+func (srv *Server) SetTaskStateProber(prober base.TaskProber) {
+	srv.broker.SetTaskProber(prober)
 }
