@@ -18,11 +18,10 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/oarkflow/asynq/internal/base"
-	asynqcontext "github.com/oarkflow/asynq/internal/context"
-	"github.com/oarkflow/asynq/internal/errors"
-	"github.com/oarkflow/asynq/internal/log"
-	"github.com/oarkflow/asynq/internal/timeutil"
+	"github.com/oarkflow/asynq/base"
+	"github.com/oarkflow/asynq/errors"
+	"github.com/oarkflow/asynq/log"
+	"github.com/oarkflow/asynq/timeutil"
 )
 
 type processor struct {
@@ -46,6 +45,7 @@ type processor struct {
 	sema              chan struct{}
 	done              chan struct{}
 	once              sync.Once
+	serverID          string
 	quit              chan struct{}
 	abort             chan struct{}
 	cancelations      *base.Cancelations
@@ -66,6 +66,7 @@ type processorParams struct {
 	concurrency       int
 	queues            map[string]int
 	strictPriority    bool
+	serverID          string
 	errHandler        ErrorHandler
 	completeHandler   CompleteHandler
 	doneHandler       DoneHandler
@@ -98,6 +99,7 @@ func newProcessor(params processorParams) *processor {
 		recoverPanicFunc:  params.recoverPanicFunc,
 		isFailureFunc:     params.isFailureFunc,
 		syncRequestCh:     params.syncCh,
+		serverID:          params.serverID,
 		cancelations:      params.cancelations,
 		errLogLimiter:     rate.NewLimiter(rate.Every(3*time.Second), 1),
 		sema:              make(chan struct{}, params.concurrency),
@@ -198,7 +200,7 @@ func (p *processor) exec() {
 				<-p.sema // release token
 			}()
 
-			ctx, cancel := asynqcontext.New(p.baseCtxFn(), msg, deadline)
+			ctx, cancel := New(p.baseCtxFn(), msg, deadline, p.serverID)
 			p.cancelations.Add(msg.ID, cancel)
 			defer func() {
 				cancel()

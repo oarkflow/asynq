@@ -10,8 +10,6 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/oarkflow/asynq"
-
-	asynqcontext "github.com/oarkflow/asynq/internal/context"
 )
 
 // NewSemaphore creates a counting Semaphore for the given scope with the given number of tokens.
@@ -73,7 +71,7 @@ func (s *Semaphore) Acquire(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("provided context must have a deadline")
 	}
 
-	taskID, ok := asynqcontext.GetTaskID(ctx)
+	taskID, ok := asynq.GetTaskID(ctx)
 	if !ok {
 		return false, fmt.Errorf("provided context is missing task ID value")
 	}
@@ -89,7 +87,7 @@ func (s *Semaphore) Acquire(ctx context.Context) (bool, error) {
 
 // Release will release the token on the counting semaphore.
 func (s *Semaphore) Release(ctx context.Context) error {
-	taskID, ok := asynqcontext.GetTaskID(ctx)
+	taskID, ok := asynq.GetTaskID(ctx)
 	if !ok {
 		return fmt.Errorf("provided context is missing task ID value")
 	}

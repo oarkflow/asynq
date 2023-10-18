@@ -18,9 +18,9 @@ import (
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/oarkflow/asynq/internal/errors"
-	pb "github.com/oarkflow/asynq/internal/proto"
-	"github.com/oarkflow/asynq/internal/timeutil"
+	"github.com/oarkflow/asynq/errors"
+	pb "github.com/oarkflow/asynq/proto"
+	"github.com/oarkflow/asynq/timeutil"
 )
 
 // Version of asynq library and CLI.

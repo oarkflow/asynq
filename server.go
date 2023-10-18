@@ -18,9 +18,9 @@ import (
 
 	"github.com/oarkflow/xid"
 
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/log"
-	"github.com/oarkflow/asynq/internal/rdb"
+	"github.com/oarkflow/asynq/base"
+	"github.com/oarkflow/asynq/log"
+	"github.com/oarkflow/asynq/rdb"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -695,6 +695,7 @@ func NewServerFromRedisClient(c redis.UniversalClient, cfg Config) *Server {
 		shutdownTimeout:   shutdownTimeout,
 		starting:          starting,
 		finished:          finished,
+		serverID:          serverID,
 	})
 	recoverer := newRecoverer(recovererParams{
 		logger:         logger,

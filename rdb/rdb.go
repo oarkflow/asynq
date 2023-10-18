@@ -18,9 +18,9 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cast"
 
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/errors"
-	"github.com/oarkflow/asynq/internal/timeutil"
+	"github.com/oarkflow/asynq/base"
+	"github.com/oarkflow/asynq/errors"
+	"github.com/oarkflow/asynq/timeutil"
 )
 
 const statsTTL = 90 * 24 * time.Hour // 90 days

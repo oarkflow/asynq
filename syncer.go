@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/oarkflow/asynq/internal/log"
+	"github.com/oarkflow/asynq/log"
 )
 
 // syncer is responsible for queuing up failed requests to redis and retry

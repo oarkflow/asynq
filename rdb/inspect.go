@@ -13,8 +13,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cast"
 
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/errors"
+	"github.com/oarkflow/asynq/base"
+	"github.com/oarkflow/asynq/errors"
 )
 
 // AllQueues returns a list of all queue names.

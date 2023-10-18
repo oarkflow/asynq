@@ -14,9 +14,9 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/errors"
-	"github.com/oarkflow/asynq/internal/rdb"
+	"github.com/oarkflow/asynq/base"
+	"github.com/oarkflow/asynq/errors"
+	"github.com/oarkflow/asynq/rdb"
 )
 
 // A Client is responsible for scheduling tasks.

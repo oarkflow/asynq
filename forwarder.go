@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/log"
+	"github.com/oarkflow/asynq/base"
+	"github.com/oarkflow/asynq/log"
 )
 
 // A forwarder is responsible for moving scheduled and retry tasks to pending state

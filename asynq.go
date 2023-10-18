@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/oarkflow/asynq/internal/base"
+	"github.com/oarkflow/asynq/base"
 
 	"github.com/redis/go-redis/v9"
 )

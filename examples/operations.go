@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/oarkflow/asynq/internal/errors"
+	"github.com/oarkflow/asynq/errors"
 
 	"github.com/oarkflow/pkg/dipper"
 

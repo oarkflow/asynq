@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/log"
+	"github.com/oarkflow/asynq/base"
+	"github.com/oarkflow/asynq/log"
 )
 
 // healthchecker is responsible for pinging broker periodically

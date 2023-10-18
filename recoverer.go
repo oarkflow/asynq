@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/errors"
-	"github.com/oarkflow/asynq/internal/log"
+	"github.com/oarkflow/asynq/base"
+	"github.com/oarkflow/asynq/errors"
+	"github.com/oarkflow/asynq/log"
 )
 
 type recoverer struct {

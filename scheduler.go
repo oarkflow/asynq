@@ -15,9 +15,9 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/robfig/cron/v3"
 
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/log"
-	"github.com/oarkflow/asynq/internal/rdb"
+	"github.com/oarkflow/asynq/base"
+	"github.com/oarkflow/asynq/log"
+	"github.com/oarkflow/asynq/rdb"
 )
 
 // A Scheduler kicks off tasks at regular intervals based on the user defined schedule.

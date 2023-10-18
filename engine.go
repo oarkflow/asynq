@@ -10,8 +10,8 @@ import (
 	"github.com/oarkflow/xid"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/rdb"
+	"github.com/oarkflow/asynq/base"
+	"github.com/oarkflow/asynq/rdb"
 )
 
 type Mode string

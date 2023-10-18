@@ -4,7 +4,6 @@ go 1.21
 
 require (
 	github.com/golang/protobuf v1.5.3
-	github.com/google/go-cmp v0.6.0
 	github.com/oarkflow/errors v0.0.6
 	github.com/oarkflow/pkg v0.0.85
 	github.com/oarkflow/xid v1.2.5
@@ -23,6 +22,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/goccy/go-reflect v1.2.0 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/klauspost/compress v1.17.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/prometheus/client_model v0.4.1-0.20230718164431-9a2bf3000d16 // indirect
