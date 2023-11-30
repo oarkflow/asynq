@@ -600,6 +600,13 @@ func (f *Flow) prepareNodes() {
 	}
 	if f.FirstNode != "" {
 		f.firstNode = f.nodes[f.FirstNode]
+	} else {
+		if len(f.nodes) > 0 {
+			for _, n := range f.nodes {
+				f.firstNode = n
+				break
+			}
+		}
 	}
 	f.prepared = true
 }
