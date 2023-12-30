@@ -60,6 +60,7 @@ type Server struct {
 	healthchecker *healthchecker
 	janitor       *janitor
 	aggregator    *aggregator
+	mu            sync.RWMutex
 }
 
 type serverState struct {
@@ -947,6 +948,8 @@ func remove[T any](l []T, remove func(T) bool) []T {
 }
 
 func (srv *Server) AddQueues(queues map[string]int) {
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
 	srv.queues = queues
 	for queue := range srv.queues {
 		srv.forwarder.queues = append(srv.forwarder.queues, queue)
@@ -961,6 +964,8 @@ func (srv *Server) AddQueues(queues map[string]int) {
 }
 
 func (srv *Server) AddQueue(queue string, prio ...int) {
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
 	priority := 0
 	if len(prio) > 0 {
 		priority = prio[0]
@@ -976,6 +981,8 @@ func (srv *Server) AddQueue(queue string, prio ...int) {
 }
 
 func (srv *Server) RemoveQueue(queue string) {
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
 	var qName []string
 	delete(srv.queues, queue)
 	for queue := range srv.queues {

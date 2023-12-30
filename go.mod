@@ -4,16 +4,16 @@ go 1.21.0
 
 require (
 	github.com/oarkflow/errors v0.0.6
-	github.com/oarkflow/pkg v0.0.98
+	github.com/oarkflow/pkg v0.0.99
 	github.com/oarkflow/xid v1.2.5
 	github.com/prometheus/client_golang v1.17.0
-	github.com/redis/go-redis/v9 v9.3.0
+	github.com/redis/go-redis/v9 v9.3.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cast v1.6.0
 	golang.org/x/sync v0.5.0
 	golang.org/x/sys v0.15.0
 	golang.org/x/time v0.5.0
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/protobuf v1.32.0
 )
 
 require (
