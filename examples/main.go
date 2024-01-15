@@ -8,18 +8,19 @@ import (
 	"time"
 
 	"github.com/oarkflow/asynq"
+	"github.com/oarkflow/asynq/errors"
 )
 
 const redisAddrWorker = "127.0.0.1:6379"
 
 func main() {
-	// send(asynq.Sync)
+	send(asynq.Sync)
 	// sendA(asynq.Async)
 	// schedule()
-	go consumer1()
+	/*go consumer1()
 	go consumer2()
 	sendTask()
-	time.Sleep(10 * time.Second)
+	time.Sleep(10 * time.Second)*/
 }
 
 func handler(ctx context.Context, task *asynq.Task) asynq.Result {
@@ -29,7 +30,7 @@ func handler(ctx context.Context, task *asynq.Task) asynq.Result {
 
 func handler2(ctx context.Context, task *asynq.Task) asynq.Result {
 	fmt.Println("Handler 2", task.Type(), string(task.Payload()))
-	return asynq.Result{}
+	return asynq.Result{Error: errors.New("Error 1")}
 }
 
 func sendTask() {
@@ -106,7 +107,7 @@ func send(mode asynq.Mode) {
 	f := asynq.NewFlow(asynq.Config{Mode: mode, RedisServer: redisAddrWorker})
 	f.FirstNode = "get:input"
 	f.
-		AddHandler("get:input", &GetData{Operation{Type: "input"}}).
+		AddHandler("get:input", &GetData{Operation{Type: "input", Key: "receive-input"}}).
 		AddHandler("send:sms", &SendSms{Operation{Type: "process"}}).
 		AddHandler("notification", &InAppNotification{Operation{Type: "process"}}).
 		AddHandler("data-branch", &DataBranchHandler{Operation{Type: "condition"}}).

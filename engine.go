@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -13,6 +14,27 @@ import (
 	"github.com/oarkflow/asynq/base"
 	"github.com/oarkflow/asynq/rdb"
 )
+
+type FlowError struct {
+	Node  string `json:"node"`
+	Type  string `json:"type"`
+	error error  `json:"error"`
+}
+
+func (f *FlowError) Error() string {
+	if f.error != nil {
+		return fmt.Sprintf("%s; node: %s; type: %s", f.error.Error(), f.Node, f.Type)
+	}
+	return fmt.Sprintf("node: %s; type: %s", f.Node, f.Type)
+}
+
+func NewFlowError(err error, node, nodeType string) error {
+	return &FlowError{
+		Node:  node,
+		Type:  nodeType,
+		error: err,
+	}
+}
 
 type Mode string
 
@@ -50,7 +72,7 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 	var rs, results []any
 	err := json.Unmarshal(payload, &rs)
 	if err != nil {
-		return nil, err
+		return nil, NewFlowError(err, n.GetKey(), n.GetType())
 	}
 	for _, single := range rs {
 		single := single
@@ -77,15 +99,17 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 				currentData = s
 				payload, err = json.Marshal(currentData)
 				if err != nil {
-					result <- err
-					return err
+					fError := NewFlowError(err, n.GetKey(), n.GetType())
+					result <- fError
+					return fError
 				}
 				break
 			default:
 				payload, err = json.Marshal(single)
 				if err != nil {
-					result <- err
-					return err
+					fError := NewFlowError(err, n.GetKey(), n.GetType())
+					result <- fError
+					return fError
 				}
 			}
 			var responseData map[string]interface{}
@@ -94,24 +118,29 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 
 				res := n.flow.processNode(ctx, t, n.flow.nodes[v])
 				if res.Error != nil {
-					result <- res.Error
+					fError := NewFlowError(res.Error, n.GetKey(), n.GetType())
+					result <- fError
+					return fError
 				}
 				err = json.Unmarshal(res.Data, &responseData)
 				if err != nil {
-					result <- err
-					return err
+					fError := NewFlowError(err, n.GetKey(), n.GetType())
+					result <- fError
+					return fError
 				}
 				currentData = mergeMap(currentData, responseData)
 			}
 			payload, err = json.Marshal(currentData)
 			if err != nil {
-				result <- err
-				return err
+				fError := NewFlowError(err, n.GetKey(), n.GetType())
+				result <- fError
+				return fError
 			}
 			err = json.Unmarshal(payload, &single)
 			if err != nil {
-				result <- err
-				return err
+				fError := NewFlowError(err, n.GetKey(), n.GetType())
+				result <- fError
+				return fError
 			}
 			select {
 			case result <- single:
@@ -142,6 +171,7 @@ func (n *node) ProcessTask(ctx context.Context, task *Task) Result {
 	var c context.Context
 	result := n.handler.ProcessTask(ctx, task)
 	if result.Error != nil {
+		result.Error = NewFlowError(result.Error, n.GetKey(), n.GetType())
 		return result
 	}
 	if result.Ctx != nil {
@@ -152,12 +182,12 @@ func (n *node) ProcessTask(ctx context.Context, task *Task) Result {
 	if n.flow.Mode == Sync && len(n.loops) > 0 {
 		arr, err := n.loop(c, result.Data)
 		if err != nil {
-			result.Error = err
+			result.Error = NewFlowError(err, n.GetKey(), n.GetType())
 			return result
 		}
 		bt, err := json.Marshal(arr)
 		result.Data = bt
-		result.Error = err
+		result.Error = NewFlowError(err, n.GetKey(), n.GetType())
 	}
 
 	return result
