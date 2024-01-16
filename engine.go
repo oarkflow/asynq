@@ -187,7 +187,9 @@ func (n *node) ProcessTask(ctx context.Context, task *Task) Result {
 		}
 		bt, err := json.Marshal(arr)
 		result.Data = bt
-		result.Error = NewFlowError(err, n.GetKey(), n.GetType())
+		if err != nil {
+			result.Error = NewFlowError(err, n.GetKey(), n.GetType())
+		}
 	}
 
 	return result
