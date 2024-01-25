@@ -22,10 +22,17 @@ type FlowError struct {
 }
 
 func (f *FlowError) Error() string {
-	if f.error != nil {
-		return fmt.Sprintf("%s; node: %s; type: %s", f.error.Error(), f.Node, f.Type)
+	var err []string
+	if f.Node != "" {
+		err = append(err, fmt.Sprintf("node: %s", f.Node))
 	}
-	return fmt.Sprintf("node: %s; type: %s", f.Node, f.Type)
+	if f.Type != "" {
+		err = append(err, fmt.Sprintf("type: %s", f.Type))
+	}
+	if f.error != nil {
+		err = append(err, f.error.Error())
+	}
+	return strings.Join(err, ";")
 }
 
 func NewFlowError(err error, node, nodeType string) error {
