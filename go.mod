@@ -3,8 +3,6 @@ module github.com/oarkflow/asynq
 go 1.22.0
 
 require (
-	github.com/golang/protobuf v1.5.4
-	github.com/google/go-cmp v0.5.9
 	github.com/oarkflow/errors v0.0.6
 	github.com/oarkflow/pkg v0.1.37
 	github.com/oarkflow/xid v1.2.5
@@ -23,6 +21,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/goccy/go-reflect v1.2.0 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/klauspost/compress v1.17.7 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect

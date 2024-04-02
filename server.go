@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"math/rand"
 	"runtime"
@@ -535,8 +536,12 @@ func NewRDB(cfg Config, cs ...redis.UniversalClient) *rdb.RDB {
 }
 
 func NewRClient(cfg Config, cs ...redis.UniversalClient) redis.UniversalClient {
+	if cfg.RedisServer != "" {
+		cfg.RedisClientOpt.Addr = cfg.RedisServer
+	}
 	if cfg.RedisClientOpt.Addr == "" {
-		cfg.RedisClientOpt = RedisClientOpt{Addr: "127.0.0.1:6379"}
+		cfg.RedisClientOpt.Addr = "127.0.0.1:6379"
+		slog.Info("Asynq using default redis host and port")
 	}
 	if len(cs) > 0 {
 		return cs[0]
