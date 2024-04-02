@@ -6,16 +6,51 @@ package asynq
 
 import (
 	"context"
+	"time"
 
-	asynqcontext "github.com/oarkflow/asynq/internal/context"
+	"github.com/oarkflow/asynq/base"
 )
+
+// A taskMetadata holds task scoped data to put in context.
+type taskMetadata struct {
+	id         string
+	qname      string
+	serverID   string
+	maxRetry   int
+	retryCount int
+}
+
+// ctxKey type is unexported to prevent collisions with context keys defined in
+// other packages.
+type ctxKey int
+
+// metadataCtxKey is the context key for the task metadata.
+// Its value of zero is arbitrary.
+const metadataCtxKey ctxKey = 0
+
+// New returns a context and cancel function for a given task message.
+func New(base context.Context, msg *base.TaskMessage, deadline time.Time, serverID string) (context.Context, context.CancelFunc) {
+	metadata := taskMetadata{
+		id:         msg.ID,
+		maxRetry:   msg.Retry,
+		retryCount: msg.Retried,
+		serverID:   serverID,
+		qname:      msg.Queue,
+	}
+	ctx := context.WithValue(base, metadataCtxKey, metadata)
+	return context.WithDeadline(ctx, deadline)
+}
 
 // GetTaskID extracts a task ID from a context, if any.
 //
 // ID of a task is guaranteed to be unique.
 // ID of a task doesn't change if the task is being retried.
 func GetTaskID(ctx context.Context) (id string, ok bool) {
-	return asynqcontext.GetTaskID(ctx)
+	metadata, ok := ctx.Value(metadataCtxKey).(taskMetadata)
+	if !ok {
+		return "", false
+	}
+	return metadata.id, true
 }
 
 // GetRetryCount extracts retry count from a context, if any.
@@ -23,7 +58,11 @@ func GetTaskID(ctx context.Context) (id string, ok bool) {
 // Return value n indicates the number of times associated task has been
 // retried so far.
 func GetRetryCount(ctx context.Context) (n int, ok bool) {
-	return asynqcontext.GetRetryCount(ctx)
+	metadata, ok := ctx.Value(metadataCtxKey).(taskMetadata)
+	if !ok {
+		return 0, false
+	}
+	return metadata.retryCount, true
 }
 
 // GetMaxRetry extracts maximum retry from a context, if any.
@@ -31,12 +70,39 @@ func GetRetryCount(ctx context.Context) (n int, ok bool) {
 // Return value n indicates the maximum number of times the associated task
 // can be retried if ProcessTask returns a non-nil error.
 func GetMaxRetry(ctx context.Context) (n int, ok bool) {
-	return asynqcontext.GetMaxRetry(ctx)
+	metadata, ok := ctx.Value(metadataCtxKey).(taskMetadata)
+	if !ok {
+		return 0, false
+	}
+	return metadata.maxRetry, true
 }
 
 // GetQueueName extracts queue name from a context, if any.
 //
-// Return value queue indicates which queue the task was pulled from.
-func GetQueueName(ctx context.Context) (queue string, ok bool) {
-	return asynqcontext.GetQueueName(ctx)
+// Return value qname indicates which queue the task was pulled from.
+func GetQueueName(ctx context.Context) (qname string, ok bool) {
+	metadata, ok := ctx.Value(metadataCtxKey).(taskMetadata)
+	if !ok {
+		return "", false
+	}
+	return metadata.qname, true
+}
+
+// GetIsLastRetry extracts is_last_retry from a context, if any.
+//
+// Return value isLast indicates whether the task is being retried for the last time.
+func GetIsLastRetry(ctx context.Context) (isLast bool, ok bool) {
+	metadata, ok := ctx.Value(metadataCtxKey).(taskMetadata)
+	if !ok {
+		return false, false
+	}
+	return metadata.retryCount == metadata.maxRetry, true
+}
+
+func GetServerID(ctx context.Context) (serverID string, ok bool) {
+	metadata, ok := ctx.Value(metadataCtxKey).(taskMetadata)
+	if !ok {
+		return "", false
+	}
+	return metadata.serverID, true
 }

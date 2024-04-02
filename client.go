@@ -14,9 +14,9 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/errors"
-	"github.com/oarkflow/asynq/internal/rdb"
+	"github.com/oarkflow/asynq/base"
+	"github.com/oarkflow/asynq/errors"
+	"github.com/oarkflow/asynq/rdb"
 )
 
 // A Client is responsible for scheduling tasks.
@@ -27,15 +27,26 @@ import (
 // Clients are safe for concurrent use by multiple goroutines.
 type Client struct {
 	broker base.Broker
+	// When a Client has been created with an existing Redis connection, we do
+	// not want to close it.
+	sharedConnection bool
 }
 
 // NewClient returns a new Client instance given a redis connection option.
 func NewClient(r RedisConnOpt) *Client {
-	c, ok := r.MakeRedisClient().(redis.UniversalClient)
+	redisClient, ok := r.MakeRedisClient().(redis.UniversalClient)
 	if !ok {
 		panic(fmt.Sprintf("asynq: unsupported RedisConnOpt type %T", r))
 	}
-	return &Client{broker: rdb.NewRDB(c)}
+	client := NewClientFromRedisClient(redisClient)
+	client.sharedConnection = false
+	return client
+}
+
+// NewClientFromRedisClient returns a new Client instance given a redis client.
+// Warning: the redis client will not be closed by Asynq, you are responsible for closing.
+func NewClientFromRedisClient(c redis.UniversalClient) *Client {
+	return &Client{broker: rdb.NewRDB(c), sharedConnection: true}
 }
 
 // NewClientFromRDB returns a new Client instance given a redis connection option.
@@ -346,6 +357,9 @@ var (
 
 // Close closes the connection with redis.
 func (c *Client) Close() error {
+	if c.sharedConnection {
+		return fmt.Errorf("redis connection is shared so the Client can't be closed through asynq")
+	}
 	return c.broker.Close()
 }
 
@@ -440,9 +454,9 @@ func EnqueueContext(broker base.Broker, ctx context.Context, task *Task, opts ..
 	}
 	switch {
 	case errors.Is(err, errors.ErrDuplicateTask):
-		return nil, fmt.Errorf("%w", ErrDuplicateTask)
+		return nil, fmt.Errorf("task %q: %w", task.Type(), ErrDuplicateTask)
 	case errors.Is(err, errors.ErrTaskIdConflict):
-		return nil, fmt.Errorf("%w", ErrTaskIDConflict)
+		return nil, fmt.Errorf("task %q: %w", task.Type(), ErrTaskIDConflict)
 	case err != nil:
 		return nil, err
 	}
@@ -459,6 +473,11 @@ func (c *Client) schedule(ctx context.Context, msg *base.TaskMessage, t time.Tim
 
 func (c *Client) addToGroup(ctx context.Context, msg *base.TaskMessage, group string, uniqueTTL time.Duration) error {
 	return addToGroup(c.broker, ctx, msg, group, uniqueTTL)
+}
+
+// StateChanged watchs state updates, with more customized detail
+func (c *Client) SetTaskProber(prober base.TaskProber) {
+	c.broker.SetTaskProber(prober)
 }
 
 func enqueue(broker base.Broker, ctx context.Context, msg *base.TaskMessage, uniqueTTL time.Duration) error {

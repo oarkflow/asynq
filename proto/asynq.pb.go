@@ -11,9 +11,10 @@
 package proto
 
 import (
-	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	reflect "reflect"
 	sync "sync"
 )
@@ -189,11 +190,11 @@ func (x *TaskMessage) GetFlowId() string {
 // ServerInfo holds information about a running server.
 type ServerInfo struct {
 	state             protoimpl.MessageState
-	Queues            map[string]int32     `protobuf:"bytes,5,rep,name=queues,proto3" json:"queues,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
-	StartTime         *timestamp.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	Host              string               `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
-	ServerId          string               `protobuf:"bytes,3,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
-	Status            string               `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	Queues            map[string]int32       `protobuf:"bytes,5,rep,name=queues,proto3" json:"queues,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+	StartTime         *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	Host              string                 `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
+	ServerId          string                 `protobuf:"bytes,3,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
+	Status            string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 	Pid               int32 `protobuf:"varint,2,opt,name=pid,proto3" json:"pid,omitempty"`
@@ -283,7 +284,7 @@ func (x *ServerInfo) GetStatus() string {
 	return ""
 }
 
-func (x *ServerInfo) GetStartTime() *timestamp.Timestamp {
+func (x *ServerInfo) GetStartTime() *timestamppb.Timestamp {
 	if x != nil {
 		return x.StartTime
 	}
@@ -300,13 +301,13 @@ func (x *ServerInfo) GetActiveWorkerCount() int32 {
 // WorkerInfo holds information about a running worker.
 type WorkerInfo struct {
 	state         protoimpl.MessageState
-	StartTime     *timestamp.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	Deadline      *timestamp.Timestamp `protobuf:"bytes,9,opt,name=deadline,proto3" json:"deadline,omitempty"`
-	Host          string               `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
-	ServerId      string               `protobuf:"bytes,3,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
-	TaskId        string               `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	TaskType      string               `protobuf:"bytes,5,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
-	Queue         string               `protobuf:"bytes,7,opt,name=queue,proto3" json:"queue,omitempty"`
+	StartTime     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	Deadline      *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=deadline,proto3" json:"deadline,omitempty"`
+	Host          string                 `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
+	ServerId      string                 `protobuf:"bytes,3,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	TaskType      string                 `protobuf:"bytes,5,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
+	Queue         string                 `protobuf:"bytes,7,opt,name=queue,proto3" json:"queue,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	TaskPayload   []byte `protobuf:"bytes,6,opt,name=task_payload,json=taskPayload,proto3" json:"task_payload,omitempty"`
 	sizeCache     protoimpl.SizeCache
@@ -394,14 +395,14 @@ func (x *WorkerInfo) GetQueue() string {
 	return ""
 }
 
-func (x *WorkerInfo) GetStartTime() *timestamp.Timestamp {
+func (x *WorkerInfo) GetStartTime() *timestamppb.Timestamp {
 	if x != nil {
 		return x.StartTime
 	}
 	return nil
 }
 
-func (x *WorkerInfo) GetDeadline() *timestamp.Timestamp {
+func (x *WorkerInfo) GetDeadline() *timestamppb.Timestamp {
 	if x != nil {
 		return x.Deadline
 	}
@@ -412,11 +413,11 @@ func (x *WorkerInfo) GetDeadline() *timestamp.Timestamp {
 // with a scheduler.
 type SchedulerEntry struct {
 	state           protoimpl.MessageState
-	NextEnqueueTime *timestamp.Timestamp `protobuf:"bytes,6,opt,name=next_enqueue_time,json=nextEnqueueTime,proto3" json:"next_enqueue_time,omitempty"`
-	PrevEnqueueTime *timestamp.Timestamp `protobuf:"bytes,7,opt,name=prev_enqueue_time,json=prevEnqueueTime,proto3" json:"prev_enqueue_time,omitempty"`
-	Id              string               `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Spec            string               `protobuf:"bytes,2,opt,name=spec,proto3" json:"spec,omitempty"`
-	TaskType        string               `protobuf:"bytes,3,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
+	NextEnqueueTime *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=next_enqueue_time,json=nextEnqueueTime,proto3" json:"next_enqueue_time,omitempty"`
+	PrevEnqueueTime *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=prev_enqueue_time,json=prevEnqueueTime,proto3" json:"prev_enqueue_time,omitempty"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Spec            string                 `protobuf:"bytes,2,opt,name=spec,proto3" json:"spec,omitempty"`
+	TaskType        string                 `protobuf:"bytes,3,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	TaskPayload     []byte   `protobuf:"bytes,4,opt,name=task_payload,json=taskPayload,proto3" json:"task_payload,omitempty"`
 	EnqueueOptions  []string `protobuf:"bytes,5,rep,name=enqueue_options,json=enqueueOptions,proto3" json:"enqueue_options,omitempty"`
@@ -490,14 +491,14 @@ func (x *SchedulerEntry) GetEnqueueOptions() []string {
 	return nil
 }
 
-func (x *SchedulerEntry) GetNextEnqueueTime() *timestamp.Timestamp {
+func (x *SchedulerEntry) GetNextEnqueueTime() *timestamppb.Timestamp {
 	if x != nil {
 		return x.NextEnqueueTime
 	}
 	return nil
 }
 
-func (x *SchedulerEntry) GetPrevEnqueueTime() *timestamp.Timestamp {
+func (x *SchedulerEntry) GetPrevEnqueueTime() *timestamppb.Timestamp {
 	if x != nil {
 		return x.PrevEnqueueTime
 	}
@@ -508,8 +509,8 @@ func (x *SchedulerEntry) GetPrevEnqueueTime() *timestamp.Timestamp {
 // by a scheduler.
 type SchedulerEnqueueEvent struct {
 	state         protoimpl.MessageState
-	EnqueueTime   *timestamp.Timestamp `protobuf:"bytes,2,opt,name=enqueue_time,json=enqueueTime,proto3" json:"enqueue_time,omitempty"`
-	TaskId        string               `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	EnqueueTime   *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=enqueue_time,json=enqueueTime,proto3" json:"enqueue_time,omitempty"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -553,7 +554,7 @@ func (x *SchedulerEnqueueEvent) GetTaskId() string {
 	return ""
 }
 
-func (x *SchedulerEnqueueEvent) GetEnqueueTime() *timestamp.Timestamp {
+func (x *SchedulerEnqueueEvent) GetEnqueueTime() *timestamppb.Timestamp {
 	if x != nil {
 		return x.EnqueueTime
 	}
@@ -687,7 +688,7 @@ var file_asynq_proto_goTypes = []any{
 	(*SchedulerEntry)(nil),        // 3: asynq.SchedulerEntry
 	(*SchedulerEnqueueEvent)(nil), // 4: asynq.SchedulerEnqueueEvent
 	nil,                           // 5: asynq.ServerInfo.QueuesEntry
-	(*timestamp.Timestamp)(nil),   // 6: google.protobuf.Timestamp
+	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
 }
 var file_asynq_proto_depIdxs = []int32{
 	5, // 0: asynq.ServerInfo.queues:type_name -> asynq.ServerInfo.QueuesEntry

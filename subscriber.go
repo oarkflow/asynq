@@ -10,8 +10,8 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/log"
+	"github.com/oarkflow/asynq/base"
+	"github.com/oarkflow/asynq/log"
 )
 
 type subscriber struct {

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/oarkflow/asynq/internal/errors"
+	"github.com/oarkflow/asynq/errors"
 
 	"github.com/oarkflow/pkg/dipper"
 
@@ -34,6 +34,7 @@ type GetData struct {
 }
 
 func (e *GetData) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
+	return asynq.Result{Error: errors.New("Error 2")}
 	fmt.Println("Getting Input", string(task.Payload()))
 	return asynq.Result{Data: task.Payload(), Ctx: ctx}
 }

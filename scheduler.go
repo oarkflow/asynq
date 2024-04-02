@@ -15,9 +15,9 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/robfig/cron/v3"
 
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/log"
-	"github.com/oarkflow/asynq/internal/rdb"
+	"github.com/oarkflow/asynq/base"
+	"github.com/oarkflow/asynq/log"
+	"github.com/oarkflow/asynq/rdb"
 )
 
 // A Scheduler kicks off tasks at regular intervals based on the user defined schedule.
@@ -45,15 +45,27 @@ type Scheduler struct {
 	// to avoid using cron.EntryID as the public API of
 	// the Scheduler.
 	idmap map[string]cron.EntryID
+	// When a Scheduler has been created with an existing Redis connection, we do
+	// not want to close it.
+	sharedConnection bool
 }
 
 // NewScheduler returns a new Scheduler instance given the redis connection option.
 // The parameter opts is optional, defaults will be used if opts is set to nil
 func NewScheduler(r RedisConnOpt, opts *SchedulerOpts) *Scheduler {
-	c, ok := r.MakeRedisClient().(redis.UniversalClient)
+	redisClient, ok := r.MakeRedisClient().(redis.UniversalClient)
 	if !ok {
 		panic(fmt.Sprintf("asynq: unsupported RedisConnOpt type %T", r))
 	}
+	scheduler := NewSchedulerFromRedisClient(redisClient, opts)
+	scheduler.sharedConnection = false
+	return scheduler
+}
+
+// NewSchedulerFromRedisClient returns a new Scheduler instance given a redis client.
+// The parameter opts is optional, defaults will be used if opts is set to nil.
+// Warning: the redis client will not be closed by Asynq, you are responsible for closing.
+func NewSchedulerFromRedisClient(c redis.UniversalClient, opts *SchedulerOpts) *Scheduler {
 	if opts == nil {
 		opts = &SchedulerOpts{}
 	}
@@ -74,7 +86,7 @@ func NewScheduler(r RedisConnOpt, opts *SchedulerOpts) *Scheduler {
 		id:              generateSchedulerID(),
 		state:           &serverState{value: srvStateNew},
 		logger:          logger,
-		client:          NewClient(r),
+		client:          NewClientFromRedisClient(c),
 		rdb:             rdb.NewRDB(c),
 		cron:            cron.New(cron.WithLocation(loc)),
 		location:        loc,
@@ -311,7 +323,9 @@ func (s *Scheduler) Shutdown() {
 
 	s.clearHistory()
 	s.client.Close()
-	s.rdb.Close()
+	if !s.sharedConnection {
+		s.rdb.Close()
+	}
 	s.logger.Info("Scheduler stopped")
 }
 
@@ -347,7 +361,7 @@ func (s *Scheduler) beat() {
 		}
 		entries = append(entries, e)
 	}
-
+	s.logger.Debugf("Writing entries %v", entries)
 	if err := s.rdb.WriteSchedulerEntries(s.id, entries, 5*time.Second); err != nil {
 		s.logger.Warnf("Scheduler could not write heartbeat data: %v", err)
 	}

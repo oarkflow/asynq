@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/oarkflow/asynq/internal/base"
-	"github.com/oarkflow/asynq/internal/log"
+	"github.com/oarkflow/asynq/base"
+	"github.com/oarkflow/asynq/log"
 )
 
 // A janitor is responsible for deleting expired completed tasks from the specified
