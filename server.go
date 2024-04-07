@@ -9,20 +9,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"math"
 	"math/rand"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
-
+	
 	"github.com/oarkflow/xid"
-
+	
 	"github.com/oarkflow/asynq/base"
 	"github.com/oarkflow/asynq/log"
 	"github.com/oarkflow/asynq/rdb"
-
+	
 	"github.com/redis/go-redis/v9"
 )
 
@@ -76,13 +75,13 @@ const (
 	// this state and then transition to StatusActive when
 	// Start or Run is callled.
 	srvStateNew serverStateValue = iota
-
+	
 	// StateActive indicates the server is up and active.
 	srvStateActive
-
+	
 	// StateStopped indicates the server is up but no longer processing new tasks.
 	srvStateStopped
-
+	
 	// StateClosed indicates the server has been shutdown.
 	srvStateClosed
 )
@@ -116,13 +115,13 @@ type Config struct {
 	//
 	// If set to a zero or negative value, NewServer will overwrite the value
 	// to the number of CPUs usable by the current process.
-
+	
 	// BaseContext optionally specifies a function that returns the base context for Handler invocations on this server.
 	//
 	// If BaseContext is nil, the default is context.Background().
 	// If this is defined, then it MUST return a non-nil context
 	BaseContext func() context.Context
-
+	
 	// TaskCheckInterval specifies the interval between checks for new tasks to process when all queues are empty.
 	//
 	// Be careful not to set this value too low because it adds significant load to redis.
@@ -135,7 +134,7 @@ type Config struct {
 	//
 	// By default, it uses exponential backoff algorithm to calculate the delay.
 	RetryDelayFunc RetryDelayFunc
-
+	
 	// Predicate function to determine whether the error returned from Handler is a failure.
 	// If the function returns false, Server will not increment the retried counter for the task,
 	// and Server won't record the queue stats (processed and failed stats) to avoid skewing the error
@@ -143,7 +142,7 @@ type Config struct {
 	//
 	// By default, if the given error is non-nil the function returns true.
 	IsFailure func(error) bool
-
+	
 	// List of queues to process with given priority value. Keys are the names of the
 	// queues and values are associated priority value.
 	//
@@ -165,7 +164,7 @@ type Config struct {
 	//
 	// If a queue has a zero or negative priority value, the queue will be ignored.
 	Queues map[string]int
-
+	
 	// StrictPriority indicates whether the queue priority should be treated strictly.
 	//
 	// If set to true, tasks in the queue with the highest priority is processed first.
@@ -173,14 +172,14 @@ type Config struct {
 	// higher priorities are empty.
 	StrictPriority bool
 	// RecoverPanicFunc will be inject some actions when workers panic.
-
+	
 	// Example:
-
+	
 	//     func pushPanicErrorToSentry(errMsg string) {
 	//      // perform to push error message to Sentry.
 	//     })
 	RecoverPanicFunc RecoverPanicFunc
-
+	
 	// ErrorHandler handles errors returned by the task handler.
 	//
 	// HandleError is invoked only if the task handler returns a non-nil error.
@@ -198,46 +197,46 @@ type Config struct {
 	//
 	//     ErrorHandler: asynq.ErrorHandlerFunc(reportError)
 	ErrorHandler ErrorHandler
-
+	
 	CompleteHandler CompleteHandler
-
+	
 	DoneHandler DoneHandler
-
+	
 	CronReportHandler Handler
-
+	
 	// Logger specifies the logger used by the server instance.
 	//
 	// If unset, default logger is used.
 	Logger Logger
-
+	
 	// LogLevel specifies the minimum log level to enable.
 	//
 	// If unset, InfoLevel is used by default.
 	LogLevel LogLevel
-
+	
 	// ShutdownTimeout specifies the duration to wait to let workers finish their tasks
 	// before forcing them to abort when stopping the server.
 	//
 	// If unset or zero, default timeout of 8 seconds is used.
 	ShutdownTimeout time.Duration
-
+	
 	// HealthCheckFunc is called periodically with any errors encountered during ping to the
 	// connected redis server.
 	HealthCheckFunc func(error)
-
+	
 	// HealthCheckInterval specifies the interval between healthchecks.
 	//
 	// If unset or zero, the interval is set to 15 seconds.
 	HealthCheckInterval time.Duration
-
+	
 	// DelayedTaskCheckInterval specifies the interval between checks run on 'scheduled' and 'retry'
 	// tasks, and forwarding them to 'pending' state if they are ready to be processed.
 	//
 	// If unset or zero, the interval is set to 5 seconds.
 	DelayedTaskCheckInterval time.Duration
-
+	
 	ServerID string
-
+	
 	// GroupGracePeriod specifies the amount of time the server will wait for an incoming task before aggregating
 	// the tasks in a group. If an incoming task is received within this period, the server will wait for another
 	// period of the same length, up to GroupMaxDelay if specified.
@@ -246,39 +245,39 @@ type Config struct {
 	// Minimum duration for GroupGracePeriod is 1 second. If value specified is less than a second, the call to
 	// NewServer will panic.
 	GroupGracePeriod time.Duration
-
+	
 	// GroupMaxDelay specifies the maximum amount of time the server will wait for incoming tasks before aggregating
 	// the tasks in a group.
 	//
 	// If unset or zero, no delay limit is used.
 	GroupMaxDelay time.Duration
-
+	
 	// GroupMaxSize specifies the maximum number of tasks that can be aggregated into a single task within a group.
 	// If GroupMaxSize is reached, the server will aggregate the tasks into one immediately.
 	//
 	// If unset or zero, no size limit is used.
 	GroupMaxSize int
-
+	
 	// GroupAggregator specifies the aggregation function used to aggregate multiple tasks in a group into one task.
 	//
 	// If unset or nil, the group aggregation feature will be disabled on the server.
 	GroupAggregator GroupAggregator
-
+	
 	// StateChanged called when a task state changed
 	//
 	TaskStateProber *TaskStateProber
-
+	
 	// JanitorInterval specifies the average interval of janitor checks for expired completed tasks.
 	//
 	// If unset or zero, default interval of 8 seconds is used.
 	JanitorInterval time.Duration
-
+	
 	// JanitorBatchSize specifies the number of expired completed tasks to be deleted in one run.
 	//
 	// If unset or zero, default batch size of 100 is used.
 	// Make sure to not put a big number as the batch size to prevent a long-running script.
 	JanitorBatchSize int
-
+	
 	idKey        string
 	statusKey    string
 	operationKey string
@@ -306,7 +305,7 @@ func (p TaskStateProber) Result(state base.TaskState, raw *base.TaskInfo) (key s
 			data = *newTaskInfo(raw.Message, raw.State, raw.NextProcessAt, raw.Result)
 		}
 	}()
-
+	
 	probers := p.Probers
 	if len(probers) == 0 {
 		probers = map[string]string{"*": "task"}
@@ -318,7 +317,7 @@ func (p TaskStateProber) Result(state base.TaskState, raw *base.TaskInfo) (key s
 	if !ok {
 		return
 	}
-
+	
 	switch key {
 	case "next":
 		data = raw.NextProcessAt
@@ -407,16 +406,16 @@ type RetryDelayFunc func(n int, e error, t *Task) time.Duration
 type Logger interface {
 	// Debug logs a message at Debug level.
 	Debug(args ...any)
-
+	
 	// Info logs a message at Info level.
 	Info(args ...any)
-
+	
 	// Warn logs a message at Warning level.
 	Warn(args ...any)
-
+	
 	// Error logs a message at Error level.
 	Error(args ...any)
-
+	
 	// Fatal logs a message at Fatal level
 	// and process will exit with status set to 1.
 	Fatal(args ...any)
@@ -430,22 +429,22 @@ type LogLevel int32
 const (
 	// Note: reserving value zero to differentiate unspecified case.
 	level_unspecified LogLevel = iota
-
+	
 	// DebugLevel is the lowest level of logging.
 	// Debug logs are intended for debugging and development purposes.
 	DebugLevel
-
+	
 	// InfoLevel is used for general informational log messages.
 	InfoLevel
-
+	
 	// WarnLevel is used for undesired but relatively expected events,
 	// which may indicate a problem.
 	WarnLevel
-
+	
 	// ErrorLevel is used for undesired and unexpected events that
 	// the program can recover from.
 	ErrorLevel
-
+	
 	// FatalLevel is used for undesired and unexpected events that
 	// the program cannot recover from.
 	FatalLevel
@@ -541,7 +540,6 @@ func NewRClient(cfg Config, cs ...redis.UniversalClient) redis.UniversalClient {
 	}
 	if cfg.RedisClientOpt.Addr == "" {
 		cfg.RedisClientOpt.Addr = "127.0.0.1:6379"
-		slog.Info("Asynq using default redis host and port")
 	}
 	if len(cs) > 0 {
 		return cs[0]
@@ -564,7 +562,7 @@ func NewServer(cfg Config) *Server {
 // and server configuration.
 func NewServerFromRedisClient(c redis.UniversalClient, cfg Config) *Server {
 	rd := NewRDB(cfg)
-
+	
 	baseCtxFn := cfg.BaseContext
 	if baseCtxFn == nil {
 		baseCtxFn = context.Background
@@ -573,7 +571,7 @@ func NewServerFromRedisClient(c redis.UniversalClient, cfg Config) *Server {
 	if n < 1 {
 		n = runtime.NumCPU()
 	}
-
+	
 	taskCheckInterval := cfg.TaskCheckInterval
 	if taskCheckInterval <= 0 {
 		taskCheckInterval = defaultTaskCheckInterval
@@ -629,12 +627,12 @@ func NewServerFromRedisClient(c redis.UniversalClient, cfg Config) *Server {
 	syncCh := make(chan *syncRequest)
 	srvState := &serverState{value: srvStateNew}
 	cancels := base.NewCancelations()
-
+	
 	taskStateProber := cfg.TaskStateProber
 	if taskStateProber != nil {
 		rd.SetTaskProber(*taskStateProber)
 	}
-
+	
 	serverID := ""
 	if cfg.ServerID != "" {
 		serverID = cfg.ServerID
@@ -645,7 +643,7 @@ func NewServerFromRedisClient(c redis.UniversalClient, cfg Config) *Server {
 	if janitorInterval == 0 {
 		janitorInterval = defaultJanitorInterval
 	}
-
+	
 	janitorBatchSize := cfg.JanitorBatchSize
 	if janitorBatchSize == 0 {
 		janitorBatchSize = defaultJanitorBatchSize
@@ -840,12 +838,12 @@ func (srv *Server) Start() error {
 		return fmt.Errorf("asynq: server cannot run with nil handler")
 	}
 	srv.processor.handler = srv.handler
-
+	
 	if err := srv.start(); err != nil {
 		return err
 	}
 	srv.logger.Info("Starting processing")
-
+	
 	srv.heartbeater.start(&srv.wg)
 	srv.healthchecker.start(&srv.wg)
 	srv.subscriber.start(&srv.wg)
@@ -888,7 +886,7 @@ func (srv *Server) Shutdown() {
 	}
 	srv.state.value = srvStateClosed
 	srv.state.mu.Unlock()
-
+	
 	srv.logger.Info("Starting graceful shutdown")
 	// Note: The order of shutdown is important.
 	// Sender goroutines should be terminated before the receiver goroutines.
@@ -924,7 +922,7 @@ func (srv *Server) Stop() {
 	}
 	srv.state.value = srvStateStopped
 	srv.state.mu.Unlock()
-
+	
 	srv.logger.Info("Stopping processor")
 	srv.processor.stop()
 	srv.logger.Info("Processor stopped")
@@ -960,7 +958,7 @@ func (srv *Server) AddQueues(queues map[string]int) {
 		srv.forwarder.queues = append(srv.forwarder.queues, queue)
 		srv.recoverer.queues = append(srv.recoverer.queues, queue)
 	}
-
+	
 	srv.heartbeater.queues = srv.queues
 	srv.processor.queueConfig = srv.queues
 	ques, orderedQueues := prepareQueues(srv.processor.queueConfig, srv.strictPriority)
