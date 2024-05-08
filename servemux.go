@@ -30,6 +30,12 @@ type ServeMux struct {
 	mws []MiddlewareFunc
 }
 
+func (mux *ServeMux) SetPayload(payload Payload) {
+}
+
+func (mux *ServeMux) SetKey(key string) {
+}
+
 type muxEntry struct {
 	h       Handler
 	pattern string

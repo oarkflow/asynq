@@ -107,10 +107,10 @@ func send(mode asynq.Mode) {
 	f := asynq.NewFlow(asynq.Config{Mode: mode, RedisServer: redisAddrWorker})
 	f.FirstNode = "get:input"
 	f.
-		AddHandler("get:input", &GetData{Operation{Type: "input", Key: "receive-input"}}).
-		AddHandler("send:sms", &SendSms{Operation{Type: "process"}}).
-		AddHandler("notification", &InAppNotification{Operation{Type: "process"}}).
-		AddHandler("data-branch", &DataBranchHandler{Operation{Type: "condition"}}).
+		AddHandler("get:input", &GetData{asynq.Operation{Type: "input"}}).
+		AddHandler("send:sms", &SendSms{asynq.Operation{Type: "process"}}).
+		AddHandler("notification", &InAppNotification{asynq.Operation{Type: "process"}}).
+		AddHandler("data-branch", &DataBranchHandler{asynq.Operation{Type: "condition"}}).
 		AddEdge("get:input", "data-branch")
 	bt, _ := json.Marshal(d)
 	data := f.Send(context.Background(), bt)
@@ -120,15 +120,15 @@ func send(mode asynq.Mode) {
 func sendA(mode asynq.Mode) {
 	f := asynq.NewFlow(asynq.Config{Mode: mode, RedisServer: redisAddrWorker})
 	f.FirstNode = "get:input"
-	f.AddHandler("email:deliver", &EmailDelivery{Operation{Type: "process"}}).
-		AddHandler("prepare:email", &PrepareEmail{Operation{Type: "process"}}).
-		AddHandler("get:input", &GetData{Operation{Type: "input"}}).
-		AddHandler("loop", &Loop{Operation{Type: "loop"}}).
-		AddHandler("condition", &Condition{Operation{Type: "condition"}}).
-		AddHandler("store:data", &StoreData{Operation{Type: "process"}}).
-		AddHandler("send:sms", &SendSms{Operation{Type: "process"}}).
-		AddHandler("notification", &InAppNotification{Operation{Type: "process"}}).
-		AddHandler("data-branch", &DataBranchHandler{Operation{Type: "condition"}}).
+	f.AddHandler("email:deliver", &EmailDelivery{asynq.Operation{Type: "process"}}).
+		AddHandler("prepare:email", &PrepareEmail{asynq.Operation{Type: "process"}}).
+		AddHandler("get:input", &GetData{asynq.Operation{Type: "input"}}).
+		AddHandler("loop", &Loop{asynq.Operation{Type: "loop"}}).
+		AddHandler("condition", &Condition{asynq.Operation{Type: "condition"}}).
+		AddHandler("store:data", &StoreData{asynq.Operation{Type: "process"}}).
+		AddHandler("send:sms", &SendSms{asynq.Operation{Type: "process"}}).
+		AddHandler("notification", &InAppNotification{asynq.Operation{Type: "process"}}).
+		AddHandler("data-branch", &DataBranchHandler{asynq.Operation{Type: "condition"}}).
 		AddBranch("data-branch", map[string]string{}).
 		AddBranch("condition", map[string]string{
 			"pass": "email:deliver",

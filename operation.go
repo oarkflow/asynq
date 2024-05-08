@@ -3,12 +3,18 @@ package asynq
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"slices"
 	"strings"
+	"time"
 
+	"github.com/araddon/dateparse"
 	"github.com/oarkflow/errors"
+	"github.com/oarkflow/expr"
 	"github.com/oarkflow/pkg/dipper"
-	"github.com/oarkflow/pkg/evaluate"
 	"github.com/oarkflow/pkg/str"
+	"github.com/oarkflow/xid"
+	"golang.org/x/exp/maps"
 )
 
 type Provider struct {
@@ -37,12 +43,12 @@ type Operation struct {
 }
 
 func (e *Operation) ProcessTask(ctx context.Context, task *Task) Result {
-	return Result{Data: task.Payload(), Ctx: ctx}
+	return Result{Data: task.Payload()}
 }
 
 func (e *Operation) SetPayload(payload Payload) {
 	e.Payload = payload
-	e.GeneratedFields = append(e.GeneratedFields, payload.GeneratedFields...)
+	e.GeneratedFields = slices.Compact(append(e.GeneratedFields, payload.GeneratedFields...))
 }
 
 func (e *Operation) GetType() string {
@@ -53,7 +59,11 @@ func (e *Operation) GetKey() string {
 	return e.Key
 }
 
-func (e *Operation) ValidateFields(ctx context.Context, payload []byte) (map[string]any, error) {
+func (e *Operation) SetKey(key string) {
+	e.Key = key
+}
+
+func (e *Operation) ValidateFields(c context.Context, payload []byte) (map[string]any, error) {
 	var keys []string
 	var data map[string]any
 	err := json.Unmarshal(payload, &data)
@@ -61,7 +71,7 @@ func (e *Operation) ValidateFields(ctx context.Context, payload []byte) (map[str
 		return nil, err
 	}
 	for k, v := range e.Payload.Mapping {
-		_, val := e.GetVal(ctx, v, data)
+		_, val := GetVal(c, v, data)
 		if val != nil {
 			keys = append(keys, k)
 		}
@@ -70,105 +80,333 @@ func (e *Operation) ValidateFields(ctx context.Context, payload []byte) (map[str
 		keys = append(keys, k)
 	}
 	for _, k := range e.RequiredFields {
-		if !str.Contains(keys, k) {
+		if !slices.Contains(keys, k) {
 			return nil, errors.New("Required field doesn't exist")
 		}
 	}
 	return data, nil
 }
 
-func (e *Operation) getVal(ctx context.Context, v string, data map[string]any) (key string, val any) {
-	header := ctx.Value("header")
-	if header != nil && strings.HasPrefix(v, "header.") {
-		v = strings.ReplaceAll(v, "header.", "")
-		vd := dipper.Get(data, v)
-		if dipper.Error(vd) == nil {
-			val = vd
-			key = v
-		}
-		return
-	}
-	if strings.Contains(v, "*_") {
-		fieldSuffix := strings.ReplaceAll(v, "*", "")
-		for k, vt := range data {
-			if strings.HasSuffix(k, fieldSuffix) {
-				val = vt
-				key = k
-				return
+func GetVal(c context.Context, v string, data map[string]any) (key string, val any) {
+	key, val = getVal(c, v, data)
+	if val == nil {
+		if strings.Contains(v, "+") {
+			vPartsG := strings.Split(v, "+")
+			var value []string
+			for _, v := range vPartsG {
+				key, val = getVal(c, strings.TrimSpace(v), data)
+				if val == nil {
+					continue
+				}
+				value = append(value, val.(string))
 			}
+			val = strings.Join(value, "")
+		} else {
+			key, val = getVal(c, v, data)
 		}
 	}
-	vd := dipper.Get(data, v)
-	if dipper.Error(vd) == nil {
-		val = vd
-		key = v
+
+	return
+}
+
+func Header(c context.Context, headerKey string) (val map[string]any, exists bool) {
+	header := c.Value("header")
+	switch header := header.(type) {
+	case map[string]any:
+		if p, exist := header[headerKey]; exist && p != nil {
+			val = p.(map[string]any)
+			exists = exist
+		}
 	}
 	return
 }
 
-func (e *Operation) GetVal(ctx context.Context, v string, data map[string]any) (key string, val any) {
+func HeaderVal(c context.Context, headerKey string, key string) (val any) {
+	header := c.Value("header")
+	switch header := header.(type) {
+	case map[string]any:
+		if p, exists := header[headerKey]; exists && p != nil {
+			headerField := p.(map[string]any)
+			if v, e := headerField[key]; e {
+				val = v
+			}
+		}
+	}
+	return
+}
+
+func getVal(c context.Context, v string, data map[string]any) (key string, val any) {
+	var param, query, consts map[string]any
+	var enums map[string]map[string]any
+	headerData := make(map[string]any)
+	header := c.Value("header")
+	switch header := header.(type) {
+	case map[string]any:
+		if p, exists := header["param"]; exists && p != nil {
+			param = p.(map[string]any)
+		}
+		if p, exists := header["query"]; exists && p != nil {
+			query = p.(map[string]any)
+		}
+		if p, exists := header["consts"]; exists && p != nil {
+			consts = p.(map[string]any)
+		}
+		if p, exists := header["enums"]; exists && p != nil {
+			enums = p.(map[string]map[string]any)
+		}
+		params := []string{"param", "query", "consts", "enums", "scopes"}
+		// add other data in header, other than param, query, consts, enums to data
+		for k, v := range header {
+			if !slices.Contains(params, k) {
+				headerData[k] = v
+			}
+		}
+	}
+	v = strings.TrimPrefix(v, "header.")
 	vParts := strings.Split(v, ".")
 	switch vParts[0] {
 	case "body":
 		v := vParts[1]
-		key, val = e.getVal(ctx, v, data)
+		if strings.Contains(v, "*_") {
+			fieldSuffix := strings.ReplaceAll(v, "*", "")
+			for k, vt := range data {
+				if strings.HasSuffix(k, fieldSuffix) {
+					val = vt
+					key = k
+				}
+			}
+		} else {
+			if vd, ok := data[v]; ok {
+				val = vd
+				key = v
+			}
+		}
 	case "param":
 		v := vParts[1]
-		param := data["request_param"].(map[string]any)
-		key, val = e.getVal(ctx, v, param)
+		if strings.Contains(v, "*_") {
+			fieldSuffix := strings.ReplaceAll(v, "*", "")
+			for k, vt := range param {
+				if strings.HasSuffix(k, fieldSuffix) {
+					val = vt
+					key = k
+				}
+			}
+		} else {
+			if vd, ok := param[v]; ok {
+				val = vd
+				key = v
+			}
+		}
 	case "query":
 		v := vParts[1]
-		query := data["request_query"].(map[string]any)
-		key, val = e.getVal(ctx, v, query)
+		if strings.Contains(v, "*_") {
+			fieldSuffix := strings.ReplaceAll(v, "*", "")
+			for k, vt := range query {
+				if strings.HasSuffix(k, fieldSuffix) {
+					val = vt
+					key = k
+				}
+			}
+		} else {
+			if vd, ok := query[v]; ok {
+				val = vd
+				key = v
+			}
+		}
 	case "eval":
-		v := vParts[1]
-		p, _ := evaluate.Parse(v, true)
-		pr := evaluate.NewEvalParams(data)
-		val, err := p.Eval(pr)
+		// connect string except the first one if more than two parts exist
+		var v string
+		if len(vParts) > 2 {
+			v = strings.Join(vParts[1:], ".")
+		} else {
+			v = vParts[1]
+		}
+		// remove '{{' and '}}'
+		v = v[2 : len(v)-2]
+
+		// parse the expression
+		p, err := expr.Parse(v)
 		if err != nil {
+			return "", nil
+		}
+		// evaluate the expression
+		val, err := p.Eval(data)
+		if err != nil {
+			val, err := p.Eval(headerData)
+			if err == nil {
+				return v, val
+			}
 			return "", nil
 		} else {
 			return v, val
 		}
-	default:
-		key, val = e.getVal(ctx, v, data)
-	}
-	return
-}
-
-func (e *Operation) GetExtraParams(ctx context.Context) map[string]any {
-	extraParams := map[string]any{}
-	ep := ctx.Value("extra_params")
-	switch ep := ep.(type) {
-	case map[string]any:
-		extraParams = ep
-	case string:
-		json.Unmarshal([]byte(ep), &extraParams)
-	}
-	return extraParams
-}
-
-func (e *Operation) PrepareData(ctx context.Context, data any) {
-	extraParams := e.GetExtraParams(ctx)
-	switch data := data.(type) {
-	case map[string]any:
-		for key, val := range extraParams {
-			data[key] = val
+	case "consts":
+		constG := vParts[1]
+		if constVal, ok := consts[constG]; ok {
+			val = constVal
+			key = v
 		}
-	case []map[string]any:
-		for _, d := range data {
-			for key, val := range extraParams {
-				d[key] = val
+	case "enums":
+		enumG := vParts[1]
+		if enumGVal, ok := enums[enumG]; ok {
+			if enumVal, ok := enumGVal[vParts[2]]; ok {
+				val = enumVal
+				key = v
 			}
 		}
-	case []any:
-		for _, d := range data {
-			switch d := d.(type) {
-			case map[string]any:
-				for key, val := range extraParams {
-					d[key] = val
+	default:
+		if strings.Contains(v, "*_") {
+			fieldSuffix := strings.ReplaceAll(v, "*", "")
+			for k, vt := range data {
+				if strings.HasSuffix(k, fieldSuffix) {
+					val = vt
+					key = k
+				}
+			}
+		} else {
+			vd := dipper.Get(data, v)
+			if dipper.Error(vd) == nil {
+				val = vd
+				key = v
+			} else {
+				vd := dipper.Get(headerData, v)
+				if dipper.Error(vd) == nil {
+					val = vd
+					key = v
 				}
 			}
 		}
 	}
+	return
+}
+
+func init() {
+	// define custom functions for use in config
+	expr.AddFunction("trim", func(params ...interface{}) (interface{}, error) {
+		if len(params) == 0 || len(params) > 1 || params[0] == nil {
+			return nil, errors.New("Invalid number of arguments")
+		}
+		val, ok := params[0].(string)
+		if !ok {
+			return nil, errors.New("Invalid argument type")
+		}
+		return strings.TrimSpace(val), nil
+	})
+	expr.AddFunction("upper", func(params ...interface{}) (interface{}, error) {
+		if len(params) == 0 || len(params) > 1 || params[0] == nil {
+			return nil, errors.New("Invalid number of arguments")
+		}
+		val, ok := params[0].(string)
+		if !ok {
+			return nil, errors.New("Invalid argument type")
+		}
+		return strings.ToUpper(val), nil
+	})
+	expr.AddFunction("lower", func(params ...interface{}) (interface{}, error) {
+		if len(params) == 0 || len(params) > 1 || params[0] == nil {
+			return nil, errors.New("Invalid number of arguments")
+		}
+		val, ok := params[0].(string)
+		if !ok {
+			return nil, errors.New("Invalid argument type")
+		}
+		return strings.ToLower(val), nil
+	})
+	expr.AddFunction("date", func(params ...interface{}) (interface{}, error) {
+		if len(params) == 0 || len(params) > 1 || params[0] == nil {
+			return nil, errors.New("Invalid number of arguments")
+		}
+		val, ok := params[0].(string)
+		if !ok {
+			return nil, errors.New("Invalid argument type")
+		}
+		t, err := dateparse.ParseAny(val)
+		if err != nil {
+			return nil, err
+		}
+		return t.Format("2006-01-02"), nil
+	})
+	expr.AddFunction("datetime", func(params ...interface{}) (interface{}, error) {
+		if len(params) == 0 || len(params) > 1 || params[0] == nil {
+			return nil, errors.New("Invalid number of arguments")
+		}
+		val, ok := params[0].(string)
+		if !ok {
+			return nil, errors.New("Invalid argument type")
+		}
+		t, err := dateparse.ParseAny(val)
+		if err != nil {
+			return nil, err
+		}
+		return t.Format(time.RFC3339), nil
+	})
+	expr.AddFunction("addSecondsToNow", func(params ...interface{}) (interface{}, error) {
+		if len(params) == 0 || len(params) > 1 || params[0] == nil {
+			return nil, errors.New("Invalid number of arguments")
+		}
+		// if type of params[0] is not float64 or int, return error
+		tt, isFloat := params[0].(float64)
+		if !isFloat {
+			if _, ok := params[0].(int); !ok {
+				return nil, errors.New("Invalid argument type")
+			}
+		}
+		// add expiry to the current time
+		// convert parms[0] to int from float64
+		if isFloat {
+			params[0] = int(tt)
+		}
+		t := time.Now().UTC()
+		t = t.Add(time.Duration(params[0].(int)) * time.Second)
+		return t, nil
+	})
+	expr.AddFunction("values", func(params ...interface{}) (interface{}, error) {
+		if len(params) == 0 || len(params) > 2 {
+			return nil, errors.New("Invalid number of arguments")
+		}
+		// get values from map
+		mapList, ok := params[0].([]any)
+		if !ok {
+			return nil, errors.New("Invalid argument type")
+		}
+		keyToGet, hasKey := params[1].(string)
+		var values []any
+		if hasKey {
+			for _, m := range mapList {
+				mp := m.(map[string]any)
+				if val, ok := mp[keyToGet]; ok {
+					values = append(values, val)
+				}
+			}
+		} else {
+			for _, m := range mapList {
+				mp := m.(map[string]any)
+				vals := maps.Values(mp)
+				values = append(values, vals...)
+			}
+		}
+		return values, nil
+	})
+	expr.AddFunction("uniqueid", func(params ...interface{}) (interface{}, error) {
+		// create a new xid
+		return xid.New().String(), nil
+	})
+	expr.AddFunction("makeSlug", func(params ...interface{}) (interface{}, error) {
+		if len(params) == 0 || len(params) > 1 || params[0] == nil {
+			return nil, errors.New("Invalid number of arguments")
+		}
+		// convert to string
+		return str.Slug(fmt.Sprint(params[0])), nil
+	})
+	expr.AddFunction("now", func(params ...interface{}) (interface{}, error) {
+		// get the current time in UTC
+		return time.Now().UTC(), nil
+	})
+	expr.AddFunction("toString", func(params ...interface{}) (interface{}, error) {
+		if len(params) == 0 || len(params) > 1 || params[0] == nil {
+			return nil, errors.New("Invalid number of arguments")
+		}
+		// convert to string
+		return fmt.Sprint(params[0]), nil
+	})
 }

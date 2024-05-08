@@ -206,6 +206,14 @@ func (n *node) GetType() string {
 	return n.handler.GetType()
 }
 
+func (n *node) SetPayload(payload Payload) {
+
+}
+
+func (n *node) SetKey(key string) {
+	n.id = key
+}
+
 func (n *node) GetKey() string {
 	return n.handler.GetKey()
 }
@@ -226,6 +234,14 @@ func (v *CronReportHandler) GetType() string {
 
 func (v *CronReportHandler) GetKey() string {
 	return v.Key
+}
+
+func (v *CronReportHandler) SetPayload(payload Payload) {
+
+}
+
+func (v *CronReportHandler) SetKey(key string) {
+	v.Key = key
 }
 
 type HandleFinalStatus struct {
@@ -367,6 +383,9 @@ func (f *Flow) AddHandler(id string, handler Handler, params ...map[string]any) 
 	}
 	if len(params) > 0 {
 		n.params = params[0]
+	}
+	if handler.GetKey() == "" {
+		handler.SetKey(id)
 	}
 	f.nodes[id] = n
 	f.Nodes = append(f.Nodes, id)
@@ -741,6 +760,14 @@ func (f *Flow) Shutdown() {
 	}
 	f.scheduler.Shutdown()
 	f.server.Shutdown()
+}
+
+func (f *Flow) SetPayload(payload Payload) {
+
+}
+
+func (f *Flow) SetKey(key string) {
+	f.Key = key
 }
 
 func (f *Flow) Send(ctx context.Context, data []byte) Result {

@@ -3,34 +3,16 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-
-	"github.com/oarkflow/asynq/errors"
 
 	"github.com/oarkflow/pkg/dipper"
 
 	"github.com/oarkflow/asynq"
 )
 
-type Operation struct {
-	Type string `json:"type"`
-	Key  string `json:"key"`
-}
-
-func (e *Operation) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
-	return asynq.Result{Data: task.Payload(), Ctx: ctx}
-}
-
-func (e *Operation) GetType() string {
-	return e.Type
-}
-
-func (e *Operation) GetKey() string {
-	return e.Key
-}
-
 type GetData struct {
-	Operation
+	asynq.Operation
 }
 
 func (e *GetData) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
@@ -40,7 +22,7 @@ func (e *GetData) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Resul
 }
 
 type Loop struct {
-	Operation
+	asynq.Operation
 }
 
 func (e *Loop) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
@@ -49,7 +31,7 @@ func (e *Loop) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
 }
 
 type Condition struct {
-	Operation
+	asynq.Operation
 }
 
 func (e *Condition) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
@@ -68,7 +50,7 @@ func (e *Condition) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Res
 }
 
 type PrepareEmail struct {
-	Operation
+	asynq.Operation
 }
 
 func (e *PrepareEmail) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
@@ -81,7 +63,7 @@ func (e *PrepareEmail) ProcessTask(ctx context.Context, task *asynq.Task) asynq.
 }
 
 type EmailDelivery struct {
-	Operation
+	asynq.Operation
 }
 
 func (e *EmailDelivery) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
@@ -92,7 +74,7 @@ func (e *EmailDelivery) ProcessTask(ctx context.Context, task *asynq.Task) asynq
 }
 
 type SendSms struct {
-	Operation
+	asynq.Operation
 }
 
 func (e *SendSms) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
@@ -105,7 +87,7 @@ func (e *SendSms) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Resul
 }
 
 type StoreData struct {
-	Operation
+	asynq.Operation
 }
 
 func (e *StoreData) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
@@ -116,7 +98,7 @@ func (e *StoreData) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Res
 }
 
 type InAppNotification struct {
-	Operation
+	asynq.Operation
 }
 
 func (e *InAppNotification) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
@@ -127,7 +109,7 @@ func (e *InAppNotification) ProcessTask(ctx context.Context, task *asynq.Task) a
 	return asynq.Result{Data: task.Payload(), Ctx: ctx}
 }
 
-type DataBranchHandler struct{ Operation }
+type DataBranchHandler struct{ asynq.Operation }
 
 func (v *DataBranchHandler) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
 	ctx = context.WithValue(ctx, "extra_params", map[string]any{"iphone": true})
