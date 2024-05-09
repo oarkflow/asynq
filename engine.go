@@ -18,21 +18,26 @@ import (
 type FlowError struct {
 	Node  string `json:"node"`
 	Type  string `json:"type"`
-	error error  `json:"error"`
+	error error
 }
 
 func (f *FlowError) Error() string {
+	var msg string
 	var err []string
+	if f.error != nil {
+		msg = f.error.Error()
+	}
 	if f.Node != "" {
 		err = append(err, fmt.Sprintf("node: %s", f.Node))
 	}
 	if f.Type != "" {
 		err = append(err, fmt.Sprintf("type: %s", f.Type))
 	}
-	if f.error != nil {
-		err = append(err, f.error.Error())
+	errs := strings.Join(err, "; ")
+	if !strings.Contains(msg, errs) {
+		return msg + "\n" + strings.Join(err, "; ")
 	}
-	return strings.Join(err, ";")
+	return msg
 }
 
 func NewFlowError(err error, node, nodeType string) error {
@@ -122,7 +127,6 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 			var responseData map[string]interface{}
 			for _, v := range n.loops {
 				t := NewTask(v, payload, FlowID(n.flow.ID), Queue(v))
-
 				res := n.flow.processNode(ctx, t, n.flow.nodes[v])
 				if res.Error != nil {
 					fError := NewFlowError(res.Error, n.GetKey(), n.GetType())
@@ -215,7 +219,7 @@ func (n *node) SetKey(key string) {
 }
 
 func (n *node) GetKey() string {
-	return n.handler.GetKey()
+	return n.id
 }
 
 type CronReportHandler struct {
@@ -384,9 +388,7 @@ func (f *Flow) AddHandler(id string, handler Handler, params ...map[string]any) 
 	if len(params) > 0 {
 		n.params = params[0]
 	}
-	if handler.GetKey() == "" {
-		handler.SetKey(id)
-	}
+	handler.SetKey(id)
 	f.nodes[id] = n
 	f.Nodes = append(f.Nodes, id)
 	return f
