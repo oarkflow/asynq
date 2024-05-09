@@ -34,6 +34,7 @@ type Payload struct {
 }
 
 type Operation struct {
+	ID              string   `json:"id"`
 	Type            string   `json:"type"`
 	Key             string   `json:"key"`
 	RequiredFields  []string `json:"required_fields"`
