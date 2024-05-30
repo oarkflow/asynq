@@ -1,18 +1,18 @@
 module github.com/oarkflow/asynq
 
-go 1.22.0
+go 1.22.3
 
 require (
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/oarkflow/errors v0.0.6
 	github.com/oarkflow/expr v0.0.8
-	github.com/oarkflow/pkg v0.1.44
+	github.com/oarkflow/pkg v0.1.47
 	github.com/oarkflow/xid v1.2.5
 	github.com/prometheus/client_golang v1.16.0
 	github.com/redis/go-redis/v9 v9.5.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cast v1.6.0
-	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
+	golang.org/x/exp v0.0.0-20240529005216-23cca8864a10
 	golang.org/x/sync v0.7.0
 	golang.org/x/sys v0.20.0
 	golang.org/x/time v0.5.0
