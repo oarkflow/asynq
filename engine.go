@@ -377,6 +377,10 @@ func NewFlow(config ...Config) *Flow {
 	return f
 }
 
+func (f *Flow) GetHandler(id string) Handler {
+	return f.nodes[id]
+}
+
 func (f *Flow) AddHandler(id string, handler Handler, params ...map[string]any) *Flow {
 	f.mu.Lock()
 	defer f.mu.Unlock()
