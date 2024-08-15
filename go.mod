@@ -5,17 +5,17 @@ go 1.22.3
 require (
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/oarkflow/errors v0.0.6
-	github.com/oarkflow/expr v0.0.8
+	github.com/oarkflow/expr v0.0.10
 	github.com/oarkflow/pkg v0.1.47
 	github.com/oarkflow/xid v1.2.5
 	github.com/prometheus/client_golang v1.16.0
-	github.com/redis/go-redis/v9 v9.5.3
+	github.com/redis/go-redis/v9 v9.6.1
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/spf13/cast v1.6.0
-	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8
-	golang.org/x/sync v0.7.0
-	golang.org/x/sys v0.21.0
-	golang.org/x/time v0.5.0
+	github.com/spf13/cast v1.7.0
+	golang.org/x/exp v0.0.0-20240808152545-0cdaa3abc0fa
+	golang.org/x/sync v0.8.0
+	golang.org/x/sys v0.24.0
+	golang.org/x/time v0.6.0
 	google.golang.org/protobuf v1.34.2
 )
 

@@ -14,8 +14,8 @@ import (
 const redisAddrWorker = "127.0.0.1:6379"
 
 func main() {
-	send(asynq.Sync)
-	// sendA(asynq.Async)
+	// send(asynq.Async)
+	sendA(asynq.Async)
 	// schedule()
 	/*go consumer1()
 	go consumer2()
