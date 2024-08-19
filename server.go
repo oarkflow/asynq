@@ -65,16 +65,16 @@ type Server struct {
 
 type serverState struct {
 	mu    sync.Mutex
-	value serverStateValue
+	value ServerStateValue
 }
 
-type serverStateValue int
+type ServerStateValue int
 
 const (
 	// StateNew represents a new server. Server begins in
 	// this state and then transition to StatusActive when
 	// Start or Run is callled.
-	srvStateNew serverStateValue = iota
+	srvStateNew ServerStateValue = iota
 
 	// StateActive indicates the server is up and active.
 	srvStateActive
@@ -93,7 +93,7 @@ var serverStates = []string{
 	"closed",
 }
 
-func (s serverStateValue) String() string {
+func (s ServerStateValue) String() string {
 	if srvStateNew <= s && s <= srvStateClosed {
 		return serverStates[s]
 	}
