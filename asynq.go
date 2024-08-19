@@ -5,10 +5,11 @@
 package asynq
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
+	"github.com/oarkflow/json"
 	"net"
 	"net/url"
 	"strconv"
@@ -57,18 +58,14 @@ func (t *Task) MarshalBinary() ([]byte, error) {
 func (t *Task) Type() string    { return t.typename }
 func (t *Task) Payload() []byte { return t.payload }
 
-func (t *Task) AsMap() (data any, slice bool, err error) {
-	var mp map[string]any
-	err = json.Unmarshal(t.payload, &mp)
-	if err != nil {
-		var mps []map[string]any
-		err = json.Unmarshal(t.payload, &mps)
-		if err == nil {
-			data = mps
-			slice = true
-		}
-	} else {
-		data = mp
+func (t *Task) Decode() (mp map[string]any, sliceMp []map[string]any, slice bool, err error) {
+	buf := bytes.NewBuffer(t.payload)
+	decoder := json.NewDecoder(buf)
+	if err = decoder.Decode(&mp); err == nil {
+		return
+	}
+	if err = decoder.Decode(&sliceMp); err == nil {
+		slice = true
 	}
 	return
 }

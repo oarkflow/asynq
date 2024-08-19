@@ -6,9 +6,9 @@ package asynq
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/oarkflow/json"
 	"math"
 	"math/rand"
 	"runtime"

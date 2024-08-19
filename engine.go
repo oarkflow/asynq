@@ -2,9 +2,9 @@ package asynq
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/oarkflow/json"
 	"strings"
 	"sync"
 
