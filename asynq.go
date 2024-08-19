@@ -58,6 +58,20 @@ func (t *Task) MarshalBinary() ([]byte, error) {
 func (t *Task) Type() string    { return t.typename }
 func (t *Task) Payload() []byte { return t.payload }
 
+func (t *Task) AsMap() (data any, slice bool, err error) {
+	var mp map[string]any
+	buf := bytes.NewBuffer(t.payload)
+	decoder := json.NewDecoder(buf)
+	if err = decoder.Decode(&mp); err == nil {
+		return
+	}
+	var mps []map[string]any
+	if err = decoder.Decode(&mps); err == nil {
+		slice = true
+	}
+	return
+}
+
 func (t *Task) Decode() (mp map[string]any, sliceMp []map[string]any, slice bool, err error) {
 	buf := bytes.NewBuffer(t.payload)
 	decoder := json.NewDecoder(buf)
