@@ -1036,6 +1036,10 @@ func (srv *Server) IsClosed() bool {
 	return srv.state.value == srvStateClosed
 }
 
+func (srv *Server) Status() ServerStateValue {
+	return srv.state.value
+}
+
 // SetTaskStateProber StateChanged watch state updates, with more customized detail
 func (srv *Server) SetTaskStateProber(prober base.TaskProber) {
 	srv.broker.SetTaskProber(prober)
