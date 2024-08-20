@@ -9,13 +9,14 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/oarkflow/json"
 	"net"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/oarkflow/json"
 
 	"github.com/oarkflow/asynq/base"
 
@@ -59,27 +60,19 @@ func (t *Task) Type() string    { return t.typename }
 func (t *Task) Payload() []byte { return t.payload }
 
 func (t *Task) AsMap() (data any, slice bool, err error) {
+	buf := bytes.NewBuffer(t.payload)
+	decoder := json.NewDecoder(buf)
 	var mp map[string]any
-	buf := bytes.NewBuffer(t.payload)
-	decoder := json.NewDecoder(buf)
-	if err = decoder.Decode(&mp); err == nil {
-		return
-	}
-	var mps []map[string]any
-	if err = decoder.Decode(&mps); err == nil {
-		slice = true
-	}
-	return
-}
-
-func (t *Task) Decode() (mp map[string]any, sliceMp []map[string]any, slice bool, err error) {
-	buf := bytes.NewBuffer(t.payload)
-	decoder := json.NewDecoder(buf)
-	if err = decoder.Decode(&mp); err == nil {
-		return
-	}
-	if err = decoder.Decode(&sliceMp); err == nil {
-		slice = true
+	err = decoder.Decode(&mp)
+	if err != nil {
+		var mps []map[string]any
+		err = decoder.Decode(&mps)
+		if err == nil {
+			data = mps
+			slice = true
+		}
+	} else {
+		data = mp
 	}
 	return
 }

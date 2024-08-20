@@ -7,6 +7,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/oarkflow/json"
+
 	"github.com/oarkflow/asynq"
 	"github.com/oarkflow/asynq/errors"
 )

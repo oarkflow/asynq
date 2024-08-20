@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/oarkflow/json"
+
 	"github.com/oarkflow/xid"
 
 	"github.com/oarkflow/asynq/base"
