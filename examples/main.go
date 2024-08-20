@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/oarkflow/json"
 
 	"github.com/oarkflow/asynq"
 	"github.com/oarkflow/asynq/errors"
@@ -14,8 +15,8 @@ import (
 const redisAddrWorker = "127.0.0.1:6379"
 
 func main() {
-	send(asynq.Sync)
-	// sendA(asynq.Async)
+	// send(asynq.Async)
+	sendA(asynq.Async)
 	// schedule()
 	/*go consumer1()
 	go consumer2()

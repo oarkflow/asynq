@@ -2,11 +2,12 @@ package asynq
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/oarkflow/json"
 
 	"github.com/oarkflow/xid"
 	"golang.org/x/sync/errgroup"

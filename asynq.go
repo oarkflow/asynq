@@ -7,7 +7,6 @@ package asynq
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/oarkflow/json"
 
 	"github.com/oarkflow/asynq/base"
 

@@ -304,6 +304,18 @@ func (s *Scheduler) start() error {
 	return nil
 }
 
+func (s *Scheduler) IsRunning() bool {
+	return s.state.value == srvStateActive
+}
+
+func (s *Scheduler) IsClosed() bool {
+	return s.state.value == srvStateClosed
+}
+
+func (s *Scheduler) Status() ServerStateValue {
+	return s.state.value
+}
+
 // Shutdown stops and shuts down the scheduler.
 func (s *Scheduler) Shutdown() {
 	s.state.mu.Lock()

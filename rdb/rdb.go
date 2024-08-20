@@ -7,11 +7,12 @@ package rdb
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math"
 	"sync"
 	"time"
+
+	"github.com/oarkflow/json"
 
 	"github.com/oarkflow/xid"
 

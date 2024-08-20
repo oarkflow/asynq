@@ -2,13 +2,14 @@ package asynq
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/araddon/dateparse"
+	"github.com/oarkflow/json"
+
+	"github.com/oarkflow/date"
 	"github.com/oarkflow/errors"
 	"github.com/oarkflow/expr"
 	"github.com/oarkflow/pkg/dipper"
@@ -321,7 +322,7 @@ func init() {
 		if !ok {
 			return nil, errors.New("Invalid argument type")
 		}
-		t, err := dateparse.ParseAny(val)
+		t, err := date.Parse(val)
 		if err != nil {
 			return nil, err
 		}
@@ -335,7 +336,7 @@ func init() {
 		if !ok {
 			return nil, errors.New("Invalid argument type")
 		}
-		t, err := dateparse.ParseAny(val)
+		t, err := date.Parse(val)
 		if err != nil {
 			return nil, err
 		}
