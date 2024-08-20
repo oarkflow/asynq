@@ -3,15 +3,16 @@ package asynq
 import (
 	"context"
 	"fmt"
-	"github.com/oarkflow/json"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/oarkflow/json"
+
 	"github.com/oarkflow/date"
-	"github.com/oarkflow/dipper"
 	"github.com/oarkflow/errors"
 	"github.com/oarkflow/expr"
+	"github.com/oarkflow/pkg/dipper"
 	"github.com/oarkflow/xid"
 	"golang.org/x/exp/maps"
 )
@@ -264,13 +265,13 @@ func getVal(c context.Context, v string, data map[string]any) (key string, val a
 				}
 			}
 		} else {
-			vd, err := dipper.Get(data, v)
-			if err == nil {
+			vd := dipper.Get(data, v)
+			if dipper.Error(vd) == nil {
 				val = vd
 				key = v
 			} else {
-				vd, err := dipper.Get(headerData, v)
-				if err == nil {
+				vd := dipper.Get(headerData, v)
+				if dipper.Error(vd) == nil {
 					val = vd
 					key = v
 				}

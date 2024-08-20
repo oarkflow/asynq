@@ -4,10 +4,10 @@ go 1.22.3
 
 require (
 	github.com/oarkflow/date v0.0.4
-	github.com/oarkflow/dipper v0.0.6
 	github.com/oarkflow/errors v0.0.6
 	github.com/oarkflow/expr v0.0.10
 	github.com/oarkflow/json v0.0.9
+	github.com/oarkflow/pkg v0.1.47
 	github.com/oarkflow/xid v1.2.5
 	github.com/prometheus/client_golang v1.16.0
 	github.com/redis/go-redis/v9 v9.6.1
