@@ -10,10 +10,9 @@ import (
 	"github.com/oarkflow/json"
 
 	"github.com/oarkflow/date"
+	"github.com/oarkflow/dipper"
 	"github.com/oarkflow/errors"
 	"github.com/oarkflow/expr"
-	"github.com/oarkflow/pkg/dipper"
-	"github.com/oarkflow/pkg/str"
 	"github.com/oarkflow/xid"
 	"golang.org/x/exp/maps"
 )
@@ -266,13 +265,13 @@ func getVal(c context.Context, v string, data map[string]any) (key string, val a
 				}
 			}
 		} else {
-			vd := dipper.Get(data, v)
-			if dipper.Error(vd) == nil {
+			vd, err := dipper.Get(data, v)
+			if err == nil {
 				val = vd
 				key = v
 			} else {
-				vd := dipper.Get(headerData, v)
-				if dipper.Error(vd) == nil {
+				vd, err := dipper.Get(headerData, v)
+				if err == nil {
 					val = vd
 					key = v
 				}
@@ -392,13 +391,6 @@ func init() {
 	expr.AddFunction("uniqueid", func(params ...interface{}) (interface{}, error) {
 		// create a new xid
 		return xid.New().String(), nil
-	})
-	expr.AddFunction("makeSlug", func(params ...interface{}) (interface{}, error) {
-		if len(params) == 0 || len(params) > 1 || params[0] == nil {
-			return nil, errors.New("Invalid number of arguments")
-		}
-		// convert to string
-		return str.Slug(fmt.Sprint(params[0])), nil
 	})
 	expr.AddFunction("now", func(params ...interface{}) (interface{}, error) {
 		// get the current time in UTC

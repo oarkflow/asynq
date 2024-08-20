@@ -5,6 +5,7 @@
 package asynq
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -59,11 +60,13 @@ func (t *Task) Type() string    { return t.typename }
 func (t *Task) Payload() []byte { return t.payload }
 
 func (t *Task) AsMap() (data any, slice bool, err error) {
+	buf := bytes.NewBuffer(t.payload)
+	decoder := json.NewDecoder(buf)
 	var mp map[string]any
-	err = json.Unmarshal(t.payload, &mp)
+	err = decoder.Decode(&mp)
 	if err != nil {
 		var mps []map[string]any
-		err = json.Unmarshal(t.payload, &mps)
+		err = decoder.Decode(&mps)
 		if err == nil {
 			data = mps
 			slice = true
