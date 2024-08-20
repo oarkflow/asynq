@@ -7,7 +7,7 @@ import (
 
 	"github.com/oarkflow/json"
 
-	"github.com/oarkflow/pkg/dipper"
+	"github.com/oarkflow/dipper"
 
 	"github.com/oarkflow/asynq"
 )
@@ -126,13 +126,11 @@ func (v *DataBranchHandler) ProcessTask(ctx context.Context, task *asynq.Task) a
 	switch branches := row["data_branch"].(type) {
 	case map[string]any:
 		for field, handler := range branches {
-			data := dipper.Get(row, field)
-			switch data := data.(type) {
-			case error, nil:
+			data, err := dipper.Get(row, field)
+			if err != nil {
 				break
-			default:
-				b[handler.(string)] = data
 			}
+			b[handler.(string)] = data
 		}
 		break
 	}
