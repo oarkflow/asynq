@@ -2,224 +2,164 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"sync"
+	"log"
+	"time"
+
+	"github.com/oarkflow/json"
+
+	"github.com/oarkflow/asynq"
+	"github.com/oarkflow/asynq/errors"
 )
 
-// TaskFunc defines the function signature for processing a task
-type TaskFunc func(context.Context) (context.Context, error)
-
-// Node represents a task in the DAG
-type Node struct {
-	Name     string
-	Task     TaskFunc
-	Children []*Node // Dependencies of the task
-	Parents  int     // Number of dependencies (for topological sort)
-}
-
-// DAG represents the Directed Acyclic Graph
-type DAG struct {
-	Nodes map[string]*Node // All nodes (tasks) in the graph
-	Edges int              // Number of edges in the graph
-}
-
-// NewDAG initializes an empty DAG
-func NewDAG() *DAG {
-	return &DAG{
-		Nodes: make(map[string]*Node),
-	}
-}
-
-// AddNode adds a new node (task) to the DAG
-func (dag *DAG) AddNode(name string, task TaskFunc) {
-	if _, exists := dag.Nodes[name]; exists {
-		fmt.Printf("Node %s already exists.\n", name)
-		return
-	}
-	dag.Nodes[name] = &Node{
-		Name:     name,
-		Task:     task,
-		Children: []*Node{},
-		Parents:  0,
-	}
-}
-
-// AddEdge adds a directed edge between two nodes (tasks) indicating that 'from' task must run before 'to' task
-func (dag *DAG) AddEdge(from, to string) error {
-	fromNode, fromExists := dag.Nodes[from]
-	toNode, toExists := dag.Nodes[to]
-
-	if !fromExists || !toExists {
-		return errors.New("either from or to node does not exist")
-	}
-
-	// Add dependency: 'to' node depends on 'from' node
-	fromNode.Children = append(fromNode.Children, toNode)
-	toNode.Parents++
-	dag.Edges++ // Increment the number of edges in the graph
-	return nil
-}
-
-// Validate checks if the DAG is valid (has at least one edge)
-func (dag *DAG) Validate() error {
-	if dag.Edges == 0 {
-		return errors.New("DAG must have at least one edge")
-	}
-	return nil
-}
-
-// FlowManager manages the execution of the DAG
-type FlowManager struct {
-	DAG *DAG
-}
-
-// NewFlowManager creates a new flow manager
-func NewFlowManager(dag *DAG) *FlowManager {
-	return &FlowManager{
-		DAG: dag,
-	}
-}
-
-// TopologicalSort returns the nodes in a valid topological order (tasks sorted by dependencies)
-func (fm *FlowManager) TopologicalSort() ([]*Node, error) {
-	var result []*Node
-	queue := []*Node{}
-
-	// Add all nodes with no dependencies (parents == 0) to the queue
-	for _, node := range fm.DAG.Nodes {
-		if node.Parents == 0 {
-			queue = append(queue, node)
-		}
-	}
-
-	// Process the queue
-	for len(queue) > 0 {
-		// Get the first node in the queue
-		current := queue[0]
-		queue = queue[1:]
-
-		// Add the node to the result (topologically sorted order)
-		result = append(result, current)
-
-		// Process its children (nodes dependent on this node)
-		for _, child := range current.Children {
-			child.Parents--
-			if child.Parents == 0 {
-				queue = append(queue, child)
-			}
-		}
-	}
-
-	// Check if we have a valid topological sort
-	if len(result) != len(fm.DAG.Nodes) {
-		return nil, errors.New("cycle detected in the graph")
-	}
-
-	return result, nil
-}
-
-// Execute runs all tasks in the correct topological order
-func (fm *FlowManager) Execute(ctx context.Context) error {
-	// Validate the DAG
-	if err := fm.DAG.Validate(); err != nil {
-		return err
-	}
-
-	// Get the topological sort order of the nodes
-	order, err := fm.TopologicalSort()
-	if err != nil {
-		return err
-	}
-
-	// Task status tracking
-	taskResults := make(map[string]context.Context)
-	taskErrors := make(map[string]error)
-	mu := sync.Mutex{}
-	var wg sync.WaitGroup
-
-	// Process each node in topological order
-	for _, node := range order {
-		wg.Add(1)
-		go func(n *Node) {
-			defer wg.Done()
-			fmt.Printf("Executing task: %s\n", n.Name)
-
-			// Execute the task
-			newCtx, err := n.Task(ctx)
-			mu.Lock()
-			defer mu.Unlock()
-			if err != nil {
-				taskErrors[n.Name] = err
-				return
-			}
-			taskResults[n.Name] = newCtx
-		}(node)
-	}
-
-	wg.Wait()
-
-	// Check if any task failed
-	if len(taskErrors) > 0 {
-		for task, err := range taskErrors {
-			fmt.Printf("Task %s failed: %v\n", task, err)
-		}
-		return errors.New("one or more tasks failed")
-	}
-
-	fmt.Println("All tasks completed successfully.")
-	return nil
-}
-
-// Example task functions
-func TaskA(ctx context.Context) (context.Context, error) {
-	fmt.Println("Task A processing...")
-	return context.WithValue(ctx, "taskA", "done"), nil
-}
-
-func TaskB(ctx context.Context) (context.Context, error) {
-	fmt.Println("Task B processing...")
-	return context.WithValue(ctx, "taskB", "done"), nil
-}
-
-func TaskC(ctx context.Context) (context.Context, error) {
-	fmt.Println("Task C processing...")
-	return context.WithValue(ctx, "taskC", "done"), nil
-}
-
-func TaskD(ctx context.Context) (context.Context, error) {
-	fmt.Println("Task D processing...")
-	return context.WithValue(ctx, "taskD", "done"), nil
-}
+const redisAddrWorker = "127.0.0.1:6379"
 
 func main() {
-	// Initialize the DAG
-	dag := NewDAG()
+	send(asynq.Sync)
+	// sendA(asynq.Async)
+	// schedule()
+	/*go consumer1()
+	go consumer2()
+	sendTask()
+	time.Sleep(10 * time.Second)*/
+}
 
-	// Add nodes (tasks) to the DAG
-	dag.AddNode("TaskA", TaskA)
-	dag.AddNode("TaskB", TaskB)
-	dag.AddNode("TaskC", TaskC)
-	dag.AddNode("TaskD", TaskD)
+func handler(ctx context.Context, task *asynq.Task) asynq.Result {
+	fmt.Println(task.Type(), string(task.Payload()))
+	return asynq.Result{}
+}
 
-	// Add dependencies (edges) between tasks
-	if err := dag.AddEdge("TaskA", "TaskB"); err != nil {
-		fmt.Println("Error adding edge:", err)
+func handler2(ctx context.Context, task *asynq.Task) asynq.Result {
+	fmt.Println("Handler 2", task.Type(), string(task.Payload()))
+	return asynq.Result{Error: errors.New("Error 1")}
+}
+
+func sendTask() {
+	client := asynq.NewClient(asynq.RedisClientOpt{Addr: redisAddrWorker})
+	task := asynq.NewTask("queue", []byte("Hello World"))
+	_, err := client.Enqueue(task, asynq.Queue("queue"))
+	if err != nil {
+		panic(err)
 	}
-	if err := dag.AddEdge("TaskA", "TaskC"); err != nil {
-		fmt.Println("Error adding edge:", err)
+	task = asynq.NewTask("queue2", []byte("Hello World"))
+	_, err = client.Enqueue(task, asynq.Queue("queue2"))
+	if err != nil {
+		panic(err)
 	}
-	if err := dag.AddEdge("TaskB", "TaskD"); err != nil {
-		fmt.Println("Error adding edge:", err)
-	}
-	if err := dag.AddEdge("TaskA", "TaskD"); err != nil {
-		fmt.Println("Error adding edge:", err)
+	time.Sleep(10 * time.Minute)
+
+}
+
+func consumer1() {
+	rdb := asynq.NewRDB(asynq.Config{RedisServer: redisAddrWorker})
+	srv1 := asynq.NewServer(asynq.Config{RDB: rdb})
+	mux1 := asynq.NewServeMux()
+	srv1.AddHandler(mux1)
+	srv1.AddQueue("queue", 1)
+	srv1.AddQueueHandler("queue", handler)
+	if err := srv1.Start(); err != nil {
+		panic(err)
 	}
 
-	// Create and execute the flow manager
-	fm := NewFlowManager(dag)
-	ctx := context.Background()
-	if err := fm.Execute(ctx); err != nil {
-		fmt.Printf("Error executing DAG: %v\n", err)
+}
+
+func consumer2() {
+	rdb := asynq.NewRDB(asynq.Config{RedisServer: redisAddrWorker})
+
+	srv1 := asynq.NewServer(asynq.Config{RDB: rdb})
+	mux1 := asynq.NewServeMux()
+	srv1.AddHandler(mux1)
+	srv1.AddQueue("queue2", 1)
+	srv1.AddQueueHandler("queue2", handler2)
+	if err := srv1.Start(); err != nil {
+		panic(err)
+	}
+
+}
+
+var d = map[string]interface{}{
+	"data_branch": map[string]string{
+		"cpt":   "send:sms",
+		"names": "notification",
+	},
+	"names": []string{"John", "Jane", "abc"},
+	"cpt": []map[string]any{
+		{
+			"code":              "001",
+			"encounter_uid":     "1",
+			"billing_provider":  "Test provider",
+			"resident_provider": "Test Resident Provider",
+		},
+		{
+			"code":              "OBS01",
+			"encounter_uid":     "1",
+			"billing_provider":  "Test provider",
+			"resident_provider": "Test Resident Provider",
+		},
+		{
+			"code":              "SU002",
+			"billing_provider":  "Test provider",
+			"resident_provider": "Test Resident Provider",
+		},
+	},
+}
+
+func send(mode asynq.Mode) {
+	f := asynq.NewFlow(asynq.Config{Mode: mode, RedisServer: redisAddrWorker})
+	f.FirstNode = "get:input"
+	f.
+		AddHandler("get:input", &GetData{asynq.Operation{Type: "input"}}).
+		AddHandler("send:sms", &SendSms{asynq.Operation{Type: "process"}}).
+		AddHandler("notification", &InAppNotification{asynq.Operation{Type: "process"}}).
+		AddHandler("data-branch", &DataBranchHandler{asynq.Operation{Type: "condition"}}).
+		AddEdge("get:input", "data-branch")
+	bt, _ := json.Marshal(d)
+	data := f.Send(context.Background(), bt)
+	fmt.Println(string(data.Data), data.Error)
+}
+
+func sendA(mode asynq.Mode) {
+	f := asynq.NewFlow(asynq.Config{Mode: mode, RedisServer: redisAddrWorker})
+	f.FirstNode = "get:input"
+	f.AddHandler("email:deliver", &EmailDelivery{asynq.Operation{Type: "process"}}).
+		AddHandler("prepare:email", &PrepareEmail{asynq.Operation{Type: "process"}}).
+		AddHandler("get:input", &GetData{asynq.Operation{Type: "input"}}).
+		AddHandler("loop", &Loop{asynq.Operation{Type: "loop"}}).
+		AddHandler("condition", &Condition{asynq.Operation{Type: "condition"}}).
+		AddHandler("store:data", &StoreData{asynq.Operation{Type: "process"}}).
+		AddHandler("send:sms", &SendSms{asynq.Operation{Type: "process"}}).
+		AddHandler("notification", &InAppNotification{asynq.Operation{Type: "process"}}).
+		AddHandler("data-branch", &DataBranchHandler{asynq.Operation{Type: "condition"}}).
+		AddBranch("data-branch", map[string]string{}).
+		AddBranch("condition", map[string]string{
+			"pass": "email:deliver",
+			"fail": "store:data",
+		}).
+		AddEdge("get:input", "loop").
+		AddLoop("loop", "prepare:email").
+		AddEdge("prepare:email", "condition").
+		AddEdge("store:data", "send:sms").
+		AddEdge("store:data", "notification")
+	data := []map[string]any{
+		{
+			"phone": "+123456789",
+			"email": "abc.xyz@gmail.com",
+		},
+		{
+			"phone": "+98765412",
+			"email": "xyz.abc@gmail.com",
+		},
+	}
+	bt, _ := json.Marshal(data)
+	f.Send(context.Background(), bt)
+	if f.Mode == asynq.Async {
+		f.SetupServer()
+		go func() {
+			if err := f.Run(); err != nil {
+				log.Fatalf("could not run server: %v", err)
+			}
+		}()
+		time.Sleep(10 * time.Second)
+		f.Shutdown()
 	}
 }

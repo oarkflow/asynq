@@ -19,7 +19,6 @@ type Mode string
 const (
 	Sync  Mode = "sync"
 	Async Mode = "async"
-	Form  Mode = "form"
 )
 
 type node struct {
@@ -116,7 +115,7 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 		})
 	}
 	go func() {
-		g.Wait()
+		_ = g.Wait()
 		close(result)
 	}()
 	for ch := range result {
@@ -164,7 +163,7 @@ func (n *node) GetType() string {
 	return n.handler.GetType()
 }
 
-func (n *node) SetPayload(payload Payload) {
+func (n *node) SetPayload(_ Payload) {
 
 }
 
@@ -342,7 +341,7 @@ func (f *Flow) processBranches(c context.Context, d []byte, n *node) Result {
 	}
 
 	go func() {
-		g.Wait()
+		_ = g.Wait()
 		close(rt)
 	}()
 	for ch := range rt {
@@ -361,7 +360,7 @@ func (f *Flow) processBranches(c context.Context, d []byte, n *node) Result {
 	}
 	data := make(map[string]any)
 
-	// add extra params to result
+	// add extra params to the result
 	extraParams := getExtraParams(ctx)
 	if len(extraParams) > 0 {
 		for k, v := range extraParams {
@@ -415,7 +414,7 @@ func (f *Flow) processEdges(c context.Context, result Result, n *node) Result {
 	}
 
 	go func() {
-		g.Wait()
+		_ = g.Wait()
 		close(rt)
 	}()
 	for ch := range rt {
@@ -445,7 +444,7 @@ func (f *Flow) processEdges(c context.Context, result Result, n *node) Result {
 	edgeResult[n.id+"_result"] = result.Data
 	data := make(map[string]any)
 
-	// add extra params to result
+	// add extra params to the result
 	extraParams := getExtraParams(ctx)
 	if len(extraParams) > 0 {
 		for k, v := range extraParams {
@@ -507,7 +506,7 @@ func (f *Flow) processNode(ctx context.Context, task *Task, n *node) Result {
 func (f *Flow) ProcessTask(ctx context.Context, task *Task) Result {
 	f.prepareNodes()
 	if f.firstNode == nil {
-		return Result{Error: errors.New("Provide initial handler")}
+		return Result{Error: errors.New("provide initial handler")}
 	}
 	return f.processNode(ctx, task, f.firstNode)
 }
@@ -617,7 +616,7 @@ func (f *Flow) Start() error {
 		return nil
 	}
 	if f.scheduler.state.value != srvStateActive {
-		f.scheduler.Start()
+		_ = f.scheduler.Start()
 	}
 
 	if f.server.state.value != srvStateActive {
@@ -634,7 +633,7 @@ func (f *Flow) Shutdown() {
 	f.server.Shutdown()
 }
 
-func (f *Flow) SetPayload(payload Payload) {
+func (f *Flow) SetPayload(_ Payload) {
 
 }
 
@@ -664,7 +663,9 @@ func (f *Flow) SendAsync(data []byte) (*TaskInfo, error) {
 func SendAsync(redisAddress, flowID string, queue string, data []byte) (*TaskInfo, error) {
 	task := NewTask(queue, data, FlowID(flowID))
 	client := NewClient(RedisClientOpt{Addr: redisAddress})
-	defer client.Close()
+	defer func() {
+		_ = client.Close()
+	}()
 	var ops []Option
 	ops = append(ops, Queue(queue), FlowID(flowID))
 	return client.Enqueue(task, ops...)
