@@ -11,9 +11,10 @@ import (
 )
 
 type FlowError struct {
-	Node  string `json:"node"`
-	Type  string `json:"type"`
-	error error
+	Handler string `json:"handler"`
+	Node    string `json:"node"`
+	Type    string `json:"type"`
+	error   error
 }
 
 func (f *FlowError) Error() string {
@@ -21,6 +22,9 @@ func (f *FlowError) Error() string {
 	var err []string
 	if f.error != nil {
 		msg = f.error.Error()
+	}
+	if f.Handler != "" {
+		err = append(err, fmt.Sprintf("handler: %s", f.Handler))
 	}
 	if f.Node != "" {
 		err = append(err, fmt.Sprintf("node: %s", f.Node))
@@ -35,11 +39,12 @@ func (f *FlowError) Error() string {
 	return msg
 }
 
-func NewFlowError(err error, node, nodeType string) error {
+func NewFlowError(err error, flowID, node, nodeType string) error {
 	return &FlowError{
-		Node:  node,
-		Type:  nodeType,
-		error: err,
+		Handler: flowID,
+		Node:    node,
+		Type:    nodeType,
+		error:   err,
 	}
 }
 
