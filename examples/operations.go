@@ -46,12 +46,10 @@ func (e *Condition) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Res
 			fmt.Println("Checking...", data, "Pass...")
 			return asynq.Result{Data: task.Payload(), Status: "pass", Ctx: ctx}
 		}
-		fmt.Println("Checking...", data, "Fail...")
 		return asynq.Result{Data: task.Payload(), Status: "fail", Ctx: ctx}
 	default:
-		fmt.Println("Checking...", data, "Fail...")
+		return asynq.Result{Data: task.Payload(), Status: "fail", Ctx: ctx}
 	}
-	return asynq.Result{Data: task.Payload(), Status: "", Ctx: ctx}
 }
 
 type PrepareEmail struct {
@@ -97,7 +95,7 @@ func (e *SendSms) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Resul
 		panic(err)
 	}
 	fmt.Println("Sending Sms...", data)
-	return asynq.Result{Error: nil, Ctx: ctx}
+	return asynq.Result{Data: task.Payload(), Error: nil, Ctx: ctx}
 }
 
 type StoreData struct {
@@ -105,12 +103,8 @@ type StoreData struct {
 }
 
 func (e *StoreData) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
-	var data map[string]any
-	err := json.Unmarshal(task.Payload(), &data)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("Storing Data...", data)
+
+	fmt.Println("Storing Data...", string(task.Payload()))
 	return asynq.Result{Data: task.Payload(), Ctx: ctx}
 }
 
