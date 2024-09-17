@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/oarkflow/json"
@@ -26,6 +25,7 @@ type Loop struct {
 }
 
 func (e *Loop) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
+	fmt.Println("Looping...", string(task.Payload()))
 	cnt := context.WithValue(ctx, "extra_params", map[string]any{"iphone": true})
 	return asynq.Result{Data: task.Payload(), Ctx: cnt}
 }
@@ -36,7 +36,10 @@ type Condition struct {
 
 func (e *Condition) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
 	var data map[string]any
-	json.Unmarshal(task.Payload(), &data)
+	err := json.Unmarshal(task.Payload(), &data)
+	if err != nil {
+		panic(err)
+	}
 	switch email := data["email"].(type) {
 	case string:
 		if email == "abc.xyz@gmail.com" {
@@ -45,6 +48,8 @@ func (e *Condition) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Res
 		}
 		fmt.Println("Checking...", data, "Fail...")
 		return asynq.Result{Data: task.Payload(), Status: "fail", Ctx: ctx}
+	default:
+		fmt.Println("Checking...", data, "Fail...")
 	}
 	return asynq.Result{Data: task.Payload(), Status: "", Ctx: ctx}
 }
@@ -55,10 +60,14 @@ type PrepareEmail struct {
 
 func (e *PrepareEmail) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
 	var data map[string]any
-	json.Unmarshal(task.Payload(), &data)
+	err := json.Unmarshal(task.Payload(), &data)
+	if err != nil {
+		fmt.Println("Prepare Email")
+		panic(err)
+	}
 	data["email_valid"] = true
 	d, _ := json.Marshal(data)
-	fmt.Println("Preparing...", string(d))
+	fmt.Println("Preparing Email...", string(d))
 	return asynq.Result{Data: d, Ctx: ctx}
 }
 
@@ -68,7 +77,11 @@ type EmailDelivery struct {
 
 func (e *EmailDelivery) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
 	var data map[string]any
-	json.Unmarshal(task.Payload(), &data)
+	err := json.Unmarshal(task.Payload(), &data)
+	if err != nil {
+		fmt.Println("Email Delivery")
+		panic(err)
+	}
 	fmt.Println("Sending Email...", data)
 	return asynq.Result{Data: task.Payload(), Ctx: ctx}
 }
@@ -78,12 +91,13 @@ type SendSms struct {
 }
 
 func (e *SendSms) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
-	return asynq.Result{Error: errors.New("Somethign wrong"), Ctx: ctx}
-	fmt.Println(ctx.Value("extra_params"))
 	var data map[string]any
-	json.Unmarshal(task.Payload(), &data)
+	err := json.Unmarshal(task.Payload(), &data)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Println("Sending Sms...", data)
-	return asynq.Result{Error: errors.New("Somethign wrong"), Ctx: ctx}
+	return asynq.Result{Error: nil, Ctx: ctx}
 }
 
 type StoreData struct {
@@ -92,7 +106,10 @@ type StoreData struct {
 
 func (e *StoreData) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
 	var data map[string]any
-	json.Unmarshal(task.Payload(), &data)
+	err := json.Unmarshal(task.Payload(), &data)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Println("Storing Data...", data)
 	return asynq.Result{Data: task.Payload(), Ctx: ctx}
 }
@@ -102,9 +119,11 @@ type InAppNotification struct {
 }
 
 func (e *InAppNotification) ProcessTask(ctx context.Context, task *asynq.Task) asynq.Result {
-	fmt.Println(ctx.Value("extra_params"))
 	var data map[string]any
-	json.Unmarshal(task.Payload(), &data)
+	err := json.Unmarshal(task.Payload(), &data)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Println("In App notification...", data)
 	return asynq.Result{Data: task.Payload(), Ctx: ctx}
 }

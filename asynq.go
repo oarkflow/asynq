@@ -32,18 +32,11 @@ type Attachment struct {
 
 // Task represents a unit of work to be performed.
 type Task struct {
-	// typename indicates the type of task to be performed.
-	typename string
-	// FlowID indicates the type of task to be performed.
-	FlowID string
-
-	// payload holds data needed to perform the task.
-	payload []byte
-
-	// opts holds options for the task.
-	opts []Option
-
-	// w is the ResultWriter for the task.
+	typename    string
+	FlowID      string
+	CurrentNode string `json:"current_node"`
+	payload     []byte
+	opts        []Option
 	w           *ResultWriter
 	Attachments []Attachment `json:"attachments"`
 }

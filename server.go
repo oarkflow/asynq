@@ -774,10 +774,11 @@ type Handler interface {
 }
 
 type Result struct {
-	Ctx    context.Context
-	Status string `json:"status"`
-	Data   []byte `json:"data"`
-	Error  error  `json:"error"`
+	Ctx         context.Context
+	Status      string `json:"status"`
+	Data        []byte `json:"data"`
+	Error       error  `json:"error"`
+	CurrentNode string `json:"current_node"`
 }
 
 func (r Result) Unmarshal(data any) error {

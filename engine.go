@@ -3,6 +3,8 @@ package asynq
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/oarkflow/json"
@@ -37,7 +39,7 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 	var rs, results []any
 	err := json.Unmarshal(payload, &rs)
 	if err != nil {
-		return nil, NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
+		return nil, NewFlowError(err, n.GetKey(), n.GetType())
 	}
 	for _, single := range rs {
 		single := single
@@ -64,7 +66,7 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 				currentData = s
 				payload, err = json.Marshal(currentData)
 				if err != nil {
-					fError := NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
+					fError := NewFlowError(err, n.GetKey(), n.GetType())
 					result <- fError
 					return fError
 				}
@@ -72,7 +74,7 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 			default:
 				payload, err = json.Marshal(single)
 				if err != nil {
-					fError := NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
+					fError := NewFlowError(err, n.GetKey(), n.GetType())
 					result <- fError
 					return fError
 				}
@@ -82,13 +84,13 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 				t := NewTask(v, payload, FlowID(n.flow.ID), Queue(v))
 				res := n.flow.processNode(ctx, t, n.flow.nodes[v])
 				if res.Error != nil {
-					fError := NewFlowError(res.Error, n.flow.ID, n.GetKey(), n.GetType())
+					fError := NewFlowError(res.Error, n.GetKey(), n.GetType())
 					result <- fError
 					return fError
 				}
 				err = json.Unmarshal(res.Data, &responseData)
 				if err != nil {
-					fError := NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
+					fError := NewFlowError(err, n.GetKey(), n.GetType())
 					result <- fError
 					return fError
 				}
@@ -96,13 +98,13 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 			}
 			payload, err = json.Marshal(currentData)
 			if err != nil {
-				fError := NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
+				fError := NewFlowError(err, n.GetKey(), n.GetType())
 				result <- fError
 				return fError
 			}
 			err = json.Unmarshal(payload, &single)
 			if err != nil {
-				fError := NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
+				fError := NewFlowError(err, n.GetKey(), n.GetType())
 				result <- fError
 				return fError
 			}
@@ -133,9 +135,11 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 
 func (n *node) ProcessTask(ctx context.Context, task *Task) Result {
 	var c context.Context
+	task.CurrentNode = n.id
 	result := n.handler.ProcessTask(ctx, task)
+	result.CurrentNode = n.id
 	if result.Error != nil {
-		result.Error = NewFlowError(result.Error, n.flow.ID, n.GetKey(), n.GetType())
+		result.Error = NewFlowError(result.Error, n.GetKey(), n.GetType())
 		return result
 	}
 	if result.Ctx != nil {
@@ -143,19 +147,20 @@ func (n *node) ProcessTask(ctx context.Context, task *Task) Result {
 	} else {
 		c = ctx
 	}
-	if n.flow.Mode == Sync && len(n.loops) > 0 {
-		arr, err := n.loop(c, result.Data)
-		if err != nil {
-			result.Error = NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
-			return result
-		}
-		bt, err := json.Marshal(arr)
-		result.Data = bt
-		if err != nil {
-			result.Error = NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
-		}
+	if len(n.loops) == 0 || n.flow.Mode == Sync {
+		return result
 	}
 
+	arr, err := n.loop(c, result.Data)
+	if err != nil {
+		result.Error = NewFlowError(err, n.GetKey(), n.GetType())
+		return result
+	}
+	bt, err := json.Marshal(arr)
+	result.Data = bt
+	if err != nil {
+		result.Error = NewFlowError(err, n.GetKey(), n.GetType())
+	}
 	return result
 }
 
@@ -303,6 +308,125 @@ func (f *Flow) AddBranch(id string, branch map[string]string) *Flow {
 	defer f.mu.Unlock()
 	f.Branches[id] = branch
 	return f
+}
+
+func (f *Flow) Validate() ([]string, error) {
+	edges, hasCycle := f.detectCycle()
+	if hasCycle {
+		return edges, errors.New("flow has cycle")
+	}
+	return edges, nil
+}
+
+func (f *Flow) GenerateDOT() string {
+	var sb strings.Builder
+	sb.WriteString("digraph Flow {\n")
+	for _, n := range f.Nodes {
+		sb.WriteString(fmt.Sprintf("  %s;\n", n))
+	}
+	for _, edge := range f.Edges {
+		sb.WriteString(fmt.Sprintf("  %s -> %s;\n", edge[0], edge[1]))
+	}
+	for id, branch := range f.Branches {
+		for condition, target := range branch {
+			sb.WriteString(fmt.Sprintf("  %s -> %s [label=\"%s\"];\n", id, target, condition))
+		}
+	}
+	for _, loop := range f.Loops {
+		for i := 1; i < len(loop); i++ {
+			sb.WriteString(fmt.Sprintf("  %s -> %s;\n", loop[0], loop[i]))
+		}
+	}
+	sb.WriteString("}\n")
+	return sb.String()
+}
+
+func (f *Flow) detectCycleDFS(node string, visited, recStack map[string]bool, path []string) ([]string, bool) {
+	visited[node] = true
+	recStack[node] = true
+	path = append(path, node)
+	outgoingConnections := [][]string{}
+	for _, edge := range f.Edges {
+		if edge[0] == node {
+			outgoingConnections = append(outgoingConnections, edge)
+		}
+	}
+	for _, loop := range f.Loops {
+		if loop[0] == node {
+			for i := 1; i < len(loop); i++ {
+				outgoingConnections = append(outgoingConnections, []string{loop[0], loop[i]})
+			}
+		}
+	}
+	for _, conn := range outgoingConnections {
+		target := conn[1]
+		if !visited[target] {
+			if cycleNodes, found := f.detectCycleDFS(target, visited, recStack, path); found {
+				return cycleNodes, true
+			}
+		} else if recStack[target] {
+			return append(path, target), true
+		}
+	}
+	if branches, exists := f.Branches[node]; exists {
+		for _, branchTarget := range branches {
+			if !visited[branchTarget] {
+				if cycleNodes, found := f.detectCycleDFS(branchTarget, visited, recStack, path); found {
+					return cycleNodes, true
+				}
+			} else if recStack[branchTarget] {
+				return append(path, branchTarget), true
+			}
+		}
+	}
+	recStack[node] = false
+	return nil, false
+}
+
+func (f *Flow) detectCycle() ([]string, bool) {
+	visited := make(map[string]bool)
+	recStack := make(map[string]bool)
+	for _, n := range f.Nodes {
+		if visited[n] {
+			continue
+		}
+		if cycleNodes, found := f.detectCycleDFS(n, visited, recStack, []string{}); found {
+			return cycleNodes, true
+		}
+	}
+	return nil, false
+}
+
+func (f *Flow) DetectCycles() ([]string, bool) {
+	return f.detectCycle()
+}
+
+func (f *Flow) FindFirstNode() (string, bool) {
+	inDegree := make(map[string]int)
+	for _, n := range f.Nodes {
+		inDegree[n] = 0
+	}
+	for _, edge := range f.Edges {
+		outNode := edge[1]
+		inDegree[outNode]++
+	}
+	for _, branch := range f.Branches {
+		for _, target := range branch {
+			inDegree[target]++
+		}
+	}
+	for _, loop := range f.Loops {
+		for i := 1; i < len(loop); i++ {
+			outNode := loop[i]
+			inDegree[outNode]++
+		}
+	}
+	for n, count := range inDegree {
+		if count == 0 {
+			return n, true
+		}
+	}
+	return "", false
 }
 
 func (f *Flow) processBranches(c context.Context, d []byte, n *node) Result {
@@ -523,41 +647,28 @@ func (f *Flow) prepareNodes() {
 	if f.prepared {
 		return
 	}
-	var src, dest []string
 	for _, edge := range f.Edges {
 		in := edge[0]
 		out := edge[1]
-		src = append(src, in)
-		dest = append(dest, out)
-		if node, ok := f.nodes[in]; ok {
-			node.edges = append(node.edges, out)
+		if n, ok := f.nodes[in]; ok {
+			n.edges = append(n.edges, out)
 		}
 	}
 	for _, loop := range f.Loops {
 		in := loop[0]
 		out := loop[1:]
-		src = append(src, in)
-		dest = append(dest, out...)
-		if node, ok := f.nodes[in]; ok {
-			node.loops = append(node.loops, out...)
+		if n, ok := f.nodes[in]; ok {
+			n.loops = append(n.loops, out...)
 		}
 	}
 	if f.FirstNode == "" {
-		for _, t := range src {
-			if !contains(dest, t) {
-				f.FirstNode = t
-			}
+		firstNode, ok := f.FindFirstNode()
+		if ok {
+			f.FirstNode = firstNode
 		}
 	}
 	if f.FirstNode != "" {
 		f.firstNode = f.nodes[f.FirstNode]
-	} else {
-		if len(f.nodes) > 0 {
-			for _, n := range f.nodes {
-				f.firstNode = n
-				break
-			}
-		}
 	}
 	f.prepared = true
 }
@@ -568,10 +679,10 @@ func (f *Flow) SetupServer() error {
 	}
 	f.prepareNodes()
 	mux := NewServeMux()
-	for node, handler := range f.nodes {
-		f.server.AddQueue(node, 1)
-		f.rdb.Client().SAdd(context.Background(), base.AllQueues(), node)
-		result := mux.Handle(node, handler)
+	for n, handler := range f.nodes {
+		f.server.AddQueue(n, 1)
+		f.rdb.Client().SAdd(context.Background(), base.AllQueues(), n)
+		result := mux.Handle(n, handler)
 		if result.Error != nil {
 			return result.Error
 		}
@@ -689,7 +800,7 @@ func (f *Flow) edgeMiddleware(h Handler) Handler {
 			var rs []any
 			err := json.Unmarshal(result.Data, &rs)
 			if err != nil {
-				result.Error = err
+				result.Error = fmt.Errorf("loop data unmarshal error: %w", err)
 				return result
 			}
 			for _, single := range rs {
@@ -711,62 +822,53 @@ func (f *Flow) edgeMiddleware(h Handler) Handler {
 					currentData = s
 					payload, err = json.Marshal(currentData)
 					if err != nil {
-						result.Error = err
+						result.Error = fmt.Errorf("loop task marshal error: %w", err)
 						return result
 					}
 					err = task.ResultWriter().Broker().AddTask("o:f:"+task.FlowID+":t:"+id, payload)
 					if err != nil {
-						result.Error = err
+						result.Error = fmt.Errorf("error adding task to broker: %w", err)
 						return result
 					}
-					break
 				default:
 					payload, err = json.Marshal(single)
 					if err != nil {
-						result.Error = err
+						result.Error = fmt.Errorf("loop single item marshal error: %w", err)
 						return result
 					}
 				}
 				if ft, ok := f.nodes[task.Type()]; ok {
 					for _, v := range ft.loops {
 						f.Enqueue(ctx, v, task.ResultWriter().Broker(), task.FlowID, payload, &result)
-						if result.Error != nil {
-							return result
-						}
 					}
 				}
 			}
 		}
 		if h.GetType() == "condition" {
 			if ft, ok := f.Branches[task.Type()]; ok && result.Status != "" {
-				if c, o := ft[result.Status]; o {
+				if c, exists := ft[result.Status]; exists {
 					f.Enqueue(ctx, c, task.ResultWriter().Broker(), task.FlowID, result.Data, &result)
-					if result.Error != nil {
-						return result
-					}
 				}
 			} else if result.Status == "branches" {
-				var r map[string]any
-				err := json.Unmarshal(result.Data, &r)
+				var branches map[string]any
+				err := json.Unmarshal(result.Data, &branches)
 				if err != nil {
-					result.Error = err
+					result.Error = fmt.Errorf("branches data unmarshal error: %w", err)
 					return result
 				}
-				for handler, data := range r {
-					bt, _ := json.Marshal(data)
-					f.Enqueue(ctx, handler, task.ResultWriter().Broker(), task.FlowID, bt, &result)
-					if result.Error != nil {
+				for handler, data := range branches {
+					bt, err := json.Marshal(data)
+					if err != nil {
+						result.Error = fmt.Errorf("error marshalling branch data: %w", err)
 						return result
 					}
+					f.Enqueue(ctx, handler, task.ResultWriter().Broker(), task.FlowID, bt, &result)
 				}
 			}
 		}
 		if ft, ok := f.nodes[task.Type()]; ok {
 			for _, v := range ft.edges {
 				f.Enqueue(ctx, v, task.ResultWriter().Broker(), task.FlowID, result.Data, &result)
-				if result.Error != nil {
-					return result
-				}
 			}
 		}
 		return result

@@ -443,7 +443,7 @@ func (p *processor) perform(ctx context.Context, task *Task) (result Result) {
 			if p.recoverPanicFunc != nil {
 				p.recoverPanicFunc(errMsg)
 			}
-			p.logger.Errorf("recovering from panic. See the stack trace below for details:\n%s", errMsg)
+			p.logger.Errorf("recovering from panic. %v \n", x)
 			_, file, line, ok := runtime.Caller(1) // skip the first frame (panic itself)
 			if ok && strings.Contains(file, "runtime/") {
 				// The panic came from the runtime, most likely due to incorrect
