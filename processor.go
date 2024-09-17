@@ -372,6 +372,7 @@ func (p *processor) retry(l *base.Lease, msg *base.TaskMessage, e error, isFailu
 	ctx, _ := context.WithDeadline(context.Background(), l.Deadline())
 	d := p.retryDelayFunc(msg.Retried, e, NewTask(msg.Type, msg.Payload))
 	retryAt := time.Now().Add(d)
+	p.logger.Warnf("Retrying task id=%s in %s; err=%s", msg.ID, d, e.Error())
 	err := p.broker.Retry(ctx, msg, retryAt, e.Error(), isFailure)
 	if err != nil {
 		errMsg := fmt.Sprintf("Could not move task id=%s from %q to %q", msg.ID, base.ActiveKey(msg.Queue), base.RetryKey(msg.Queue))

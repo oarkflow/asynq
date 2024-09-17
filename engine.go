@@ -39,7 +39,7 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 	var rs, results []any
 	err := json.Unmarshal(payload, &rs)
 	if err != nil {
-		return nil, NewFlowError(err, n.GetKey(), n.GetType())
+		return nil, NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
 	}
 	for _, single := range rs {
 		single := single
@@ -66,7 +66,7 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 				currentData = s
 				payload, err = json.Marshal(currentData)
 				if err != nil {
-					fError := NewFlowError(err, n.GetKey(), n.GetType())
+					fError := NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
 					result <- fError
 					return fError
 				}
@@ -74,7 +74,7 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 			default:
 				payload, err = json.Marshal(single)
 				if err != nil {
-					fError := NewFlowError(err, n.GetKey(), n.GetType())
+					fError := NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
 					result <- fError
 					return fError
 				}
@@ -84,13 +84,13 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 				t := NewTask(v, payload, FlowID(n.flow.ID), Queue(v))
 				res := n.flow.processNode(ctx, t, n.flow.nodes[v])
 				if res.Error != nil {
-					fError := NewFlowError(res.Error, n.GetKey(), n.GetType())
+					fError := NewFlowError(res.Error, n.flow.ID, n.GetKey(), n.GetType())
 					result <- fError
 					return fError
 				}
 				err = json.Unmarshal(res.Data, &responseData)
 				if err != nil {
-					fError := NewFlowError(err, n.GetKey(), n.GetType())
+					fError := NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
 					result <- fError
 					return fError
 				}
@@ -98,13 +98,13 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 			}
 			payload, err = json.Marshal(currentData)
 			if err != nil {
-				fError := NewFlowError(err, n.GetKey(), n.GetType())
+				fError := NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
 				result <- fError
 				return fError
 			}
 			err = json.Unmarshal(payload, &single)
 			if err != nil {
-				fError := NewFlowError(err, n.GetKey(), n.GetType())
+				fError := NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
 				result <- fError
 				return fError
 			}
@@ -139,7 +139,7 @@ func (n *node) ProcessTask(ctx context.Context, task *Task) Result {
 	result := n.handler.ProcessTask(ctx, task)
 	result.CurrentNode = n.id
 	if result.Error != nil {
-		result.Error = NewFlowError(result.Error, n.GetKey(), n.GetType())
+		result.Error = NewFlowError(result.Error, n.flow.ID, n.GetKey(), n.GetType())
 		return result
 	}
 	if result.Ctx != nil {
@@ -153,13 +153,13 @@ func (n *node) ProcessTask(ctx context.Context, task *Task) Result {
 
 	arr, err := n.loop(c, result.Data)
 	if err != nil {
-		result.Error = NewFlowError(err, n.GetKey(), n.GetType())
+		result.Error = NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
 		return result
 	}
 	bt, err := json.Marshal(arr)
 	result.Data = bt
 	if err != nil {
-		result.Error = NewFlowError(err, n.GetKey(), n.GetType())
+		result.Error = NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
 	}
 	return result
 }
