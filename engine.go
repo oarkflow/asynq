@@ -147,19 +147,17 @@ func (n *node) ProcessTask(ctx context.Context, task *Task) Result {
 	} else {
 		c = ctx
 	}
-	if len(n.loops) == 0 || n.flow.Mode == Sync {
-		return result
-	}
-
-	arr, err := n.loop(c, result.Data)
-	if err != nil {
-		result.Error = NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
-		return result
-	}
-	bt, err := json.Marshal(arr)
-	result.Data = bt
-	if err != nil {
-		result.Error = NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
+	if n.flow.Mode == Sync && len(n.loops) > 0 {
+		arr, err := n.loop(c, result.Data)
+		if err != nil {
+			result.Error = NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
+			return result
+		}
+		bt, err := json.Marshal(arr)
+		result.Data = bt
+		if err != nil {
+			result.Error = NewFlowError(err, n.flow.ID, n.GetKey(), n.GetType())
+		}
 	}
 	return result
 }

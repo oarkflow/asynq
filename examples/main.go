@@ -16,7 +16,7 @@ const redisAddrWorker = "127.0.0.1:6379"
 
 func main() {
 	// send(asynq.Sync)
-	sendA(asynq.Async)
+	sendA(asynq.Sync)
 	// schedule()
 	/*go consumer1()
 	go consumer2()
@@ -124,7 +124,7 @@ func sendA(mode asynq.Mode) {
 	f.AddHandler("email:deliver", &EmailDelivery{asynq.Operation{Type: "process"}}).
 		AddHandler("prepare:email", &PrepareEmail{asynq.Operation{Type: "process"}}).
 		AddHandler("get:input", &GetData{asynq.Operation{Type: "input"}}).
-		AddHandler("loop:data", &Loop{asynq.Operation{Type: "loop"}}).
+		AddHandler("loop", &Loop{asynq.Operation{Type: "loop"}}).
 		AddHandler("condition", &Condition{asynq.Operation{Type: "condition"}}).
 		AddHandler("store:data", &StoreData{asynq.Operation{Type: "process"}}).
 		AddHandler("send:sms", &SendSms{asynq.Operation{Type: "process"}}).
@@ -135,16 +135,11 @@ func sendA(mode asynq.Mode) {
 			"pass": "email:deliver",
 			"fail": "store:data",
 		}).
-		AddEdge("get:input", "loop:data").
-		AddLoop("loop:data", "prepare:email").
+		AddEdge("get:input", "loop").
+		AddLoop("loop", "prepare:email").
 		AddEdge("prepare:email", "condition").
 		AddEdge("store:data", "send:sms").
 		AddEdge("store:data", "notification")
-	edges, err := f.Validate()
-	if err != nil {
-		fmt.Println(edges)
-		panic(err)
-	}
 	data := []map[string]any{
 		{
 			"phone": "+123456789",
@@ -156,10 +151,7 @@ func sendA(mode asynq.Mode) {
 		},
 	}
 	bt, _ := json.Marshal(data)
-	rs := f.Send(context.Background(), bt)
-	if rs.Error != nil {
-		panic(rs.Error)
-	}
+	f.Send(context.Background(), bt)
 	if f.Mode == asynq.Async {
 		f.SetupServer()
 		go func() {
@@ -167,7 +159,7 @@ func sendA(mode asynq.Mode) {
 				log.Fatalf("could not run server: %v", err)
 			}
 		}()
-		time.Sleep(15 * time.Second)
+		time.Sleep(10 * time.Second)
 		f.Shutdown()
 	}
 }
