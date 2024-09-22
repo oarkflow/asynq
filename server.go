@@ -789,6 +789,33 @@ func (r Result) String() string {
 	return string(r.Data)
 }
 
+func HandleError(ctx context.Context, err error, status ...string) Result {
+	st := "Failed"
+	if len(status) > 0 {
+		st = status[0]
+	}
+	if err == nil {
+		return Result{}
+	}
+	return Result{
+		Status: st,
+		Error:  err,
+		Ctx:    ctx,
+	}
+}
+
+func (r Result) WithData(status string, data []byte) Result {
+	if r.Error != nil {
+		return r
+	}
+	return Result{
+		Status: status,
+		Data:   data,
+		Error:  nil,
+		Ctx:    r.Ctx,
+	}
+}
+
 // The HandlerFunc type is an adapter to allow the use of
 // ordinary functions as a Handler. If f is a function
 // with the appropriate signature, HandlerFunc(f) is a
