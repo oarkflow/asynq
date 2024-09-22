@@ -214,7 +214,7 @@ func getVal(c context.Context, v string, data map[string]any) (key string, val a
 				key = v
 			}
 		}
-	case "eval":
+	case "eval", "gorm_eval":
 		// connect string except the first one if more than two parts exist
 		var v string
 		if len(vParts) > 2 {
