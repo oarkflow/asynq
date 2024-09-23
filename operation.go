@@ -18,12 +18,14 @@ import (
 )
 
 type Provider struct {
-	Mapping      map[string]any `json:"mapping"`
-	Defaults     map[string]any `json:"defaults"`
-	ProviderType string         `json:"provider_type"`
-	Database     string         `json:"database"`
-	Source       string         `json:"source"`
-	Query        string         `json:"query"`
+	Mapping       map[string]any `json:"mapping"`
+	UpdateMapping map[string]any `json:"update_mapping"`
+	InsertMapping map[string]any `json:"insert_mapping"`
+	Defaults      map[string]any `json:"defaults"`
+	ProviderType  string         `json:"provider_type"`
+	Database      string         `json:"database"`
+	Source        string         `json:"source"`
+	Query         string         `json:"query"`
 }
 
 type Payload struct {
