@@ -214,7 +214,7 @@ func getVal(c context.Context, v string, data map[string]any) (key string, val a
 				key = v
 			}
 		}
-	case "eval", "gorm_eval":
+	case "eval":
 		// connect string except the first one if more than two parts exist
 		var v string
 		if len(vParts) > 2 {
@@ -232,6 +232,39 @@ func getVal(c context.Context, v string, data map[string]any) (key string, val a
 		}
 		// evaluate the expression
 		val, err := p.Eval(data)
+		if err != nil {
+			val, err := p.Eval(headerData)
+			if err == nil {
+				return v, val
+			}
+			return "", nil
+		} else {
+			return v, val
+		}
+	case "eval_raw", "gorm_eval":
+		// connect string except the first one if more than two parts exist
+		var v string
+		if len(vParts) > 2 {
+			v = strings.Join(vParts[1:], ".")
+		} else {
+			v = vParts[1]
+		}
+		// remove '{{' and '}}'
+		v = v[2 : len(v)-2]
+
+		// parse the expression
+		p, err := expr.Parse(v)
+		if err != nil {
+			return "", nil
+		}
+		dt := map[string]any{
+			"header": header,
+		}
+		for k, vt := range data {
+			dt[k] = vt
+		}
+		// evaluate the expression
+		val, err := p.Eval(dt)
 		if err != nil {
 			val, err := p.Eval(headerData)
 			if err == nil {
