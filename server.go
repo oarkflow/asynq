@@ -112,6 +112,7 @@ type Config struct {
 	Concurrency    int            `json:"concurrency"`
 	RedisServer    string         `json:"redis_server"`
 	RDB            *rdb.RDB
+	Log            bool `json:"log"`
 	// Maximum number of concurrent processing of tasks.
 	//
 	// If set to a zero or negative value, NewServer will overwrite the value

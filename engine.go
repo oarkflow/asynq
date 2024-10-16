@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/oarkflow/json"
+	"github.com/oarkflow/log"
 	"strings"
 	"sync"
-
-	"github.com/oarkflow/json"
+	"time"
 
 	"github.com/oarkflow/xid"
 	"golang.org/x/sync/errgroup"
@@ -134,6 +135,13 @@ func (n *node) loop(ctx context.Context, payload []byte) ([]any, error) {
 }
 
 func (n *node) ProcessTask(ctx context.Context, task *Task) Result {
+	if n.flow.config.Log {
+		start := time.Now()
+		logger := log.Info().Str("handler", n.flow.ID).Str("node_key", n.GetKey()).Str("node_type", n.GetType())
+		defer func(logger *log.Entry) {
+			logger.Str("latency", fmt.Sprintf("%s", time.Since(start))).Msg("Node execution done")
+		}(logger)
+	}
 	var c context.Context
 	task.CurrentNode = n.id
 	result := n.handler.ProcessTask(ctx, task)

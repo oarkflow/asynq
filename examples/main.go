@@ -119,7 +119,7 @@ func send(mode asynq.Mode) {
 }
 
 func sendA(mode asynq.Mode) {
-	f := asynq.NewFlow(asynq.Config{Mode: mode, RedisServer: redisAddrWorker})
+	f := asynq.NewFlow(asynq.Config{Mode: mode, RedisServer: redisAddrWorker, Log: true})
 	f.FirstNode = "get:input"
 	f.AddHandler("email:deliver", &EmailDelivery{asynq.Operation{Type: "process"}}).
 		AddHandler("prepare:email", &PrepareEmail{asynq.Operation{Type: "process"}}).
