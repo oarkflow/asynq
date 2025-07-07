@@ -18,6 +18,13 @@ type FlowError struct {
 }
 
 func (f *FlowError) Error() string {
+	if f.error != nil {
+		return f.error.Error()
+	}
+	return ""
+}
+
+func (f *FlowError) Debug() string {
 	var msg string
 	var err []string
 	if f.error != nil {
